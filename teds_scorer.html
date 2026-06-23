@@ -457,10 +457,12 @@ function renderLB(){
 // SCORE ENTRY
 // ═══════════════════════════════════════════════
 let curTeam=null, curCourse='acc', curHalf='front', photoData=null;
+const _buf={}; // session buffer: hole inputs persist across front/back toggle
 
 function onCourseChange(){
   curCourse = document.getElementById('sc-course').value;
   curTeam=null;
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
   document.getElementById('cardPanel').style.display='none';
   filterTeams();
 }
@@ -490,16 +492,32 @@ function filterTeams(){
 function selectTeam(tid){
   curTeam = TEAMS.find(t=>t.id===tid);
   if(!curTeam) return;
+  // Seed buffer from existing saved score
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
+  const ex=getScore(curTeam.id,curCourse);
+  if(ex&&ex.team) ex.team.forEach((v,h)=>{if(v!==null)_buf[h]=v;});
   document.getElementById('cardPanel').style.display='block';
   renderCard();
   document.getElementById('cardPanel').scrollIntoView({behavior:'smooth'});
 }
 
 function setHalf(h){
+  // Save current visible inputs to buffer before switching
+  flushToBuf();
   curHalf=h;
   document.getElementById('btn-front').classList.toggle('on',h==='front');
   document.getElementById('btn-back').classList.toggle('on',h==='back');
   renderCard();
+}
+function flushToBuf(){
+  const start=curHalf==='front'?0:9;
+  for(let i=0;i<9;i++){
+    const inp=document.getElementById('h'+(start+i));
+    if(inp){
+      if(inp.value!=='') _buf[start+i]=parseInt(inp.value);
+      else delete _buf[start+i];
+    }
+  }
 }
 
 function renderCard(){
@@ -507,7 +525,9 @@ function renderCard(){
   const par = curCourse==='acc'?ACC_PAR:GCC_PAR;
   const par3 = curCourse==='acc'?ACC_PAR3:GCC_PAR3;
   const ex = getScore(curTeam.id, curCourse);
-  const scores = ex ? ex.team : Array(18).fill(null);
+  // Merge saved score with session buffer (_buf takes priority)
+  const base = ex ? [...ex.team] : Array(18).fill(null);
+  const scores = base.map((v,h)=> _buf[h]!==undefined ? _buf[h] : v);
   const ttKey = curCourse==='acc'?'acc_tee_time':'gcc_tee_time';
   const ttStr = curTeam[ttKey] ? curTeam[ttKey].substring(0,5) : 'TBD';
   const fmtLabel = curCourse==='acc'?'Low Ball – lowest score per hole counts':'Scamble – best tee shot, then individual play, lowest counts';
@@ -557,19 +577,21 @@ function onHole(h){
     const v=inp.value?parseInt(inp.value):null;
     const diff=v!==null?v-par:null;
     inp.style.color=diff!==null?(diff<0?'var(--red)':diff===0?'var(--green)':'#333'):'#333';
+    // Write to session buffer immediately
+    if(v!==null) _buf[h]=v; else delete _buf[h];
   }
   updateSummary();
 }
 
 function getAllHoles(){
-  const team=Array(18).fill(null);
+  // Flush current visible inputs to buffer first
+  flushToBuf();
+  // Build full 18-hole array from buffer, falling back to saved score
   const ex=getScore(curTeam.id,curCourse);
-  if(ex) team.splice(0,18,...ex.team);
-  const start=curHalf==='front'?0:9;
-  for(let i=0;i<9;i++){
-    const inp=document.getElementById('h'+(start+i));
-    if(inp&&inp.value) team[start+i]=parseInt(inp.value);
-    else if(inp&&inp.value==='') team[start+i]=null;
+  const team=ex ? [...ex.team] : Array(18).fill(null);
+  // Buffer overrides saved score for any hole that's been touched
+  for(let h=0;h<18;h++){
+    if(_buf[h]!==undefined) team[h]=_buf[h];
   }
   return team;
 }
@@ -599,6 +621,9 @@ function saveScore(){
   const full=team.filter(x=>x!==null).length===18;
   if(!full&&!confirm('Not all 18 holes entered. Save partial score?')) return;
   saveScoreData(curTeam.id, curCourse, {team, photo:photoData, savedAt:new Date().toISOString()});
+  // Reseed buffer from saved data so switching halves stays consistent
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
+  team.forEach((v,h)=>{if(v!==null)_buf[h]=v;});
   showToast('✅ Saved: '+curTeam.name);
   filterTeams();
 }
@@ -610,6 +635,7 @@ function clearCard(){
   db.ref('scores/'+curTeam.id+'/'+curCourse).remove();
   try{localStorage.removeItem('tci2026_photo_'+curTeam.id+'_'+curCourse);}catch(e){}
   photoData=null;
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
   renderCard();
   filterTeams();
   showToast('Cleared');
