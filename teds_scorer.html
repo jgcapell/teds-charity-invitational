@@ -269,10 +269,6 @@ select:focus,input:focus{border-color:var(--green);}
       <button class="btn btn-green" onclick="saveFlights()" style="margin-top:12px">Save Flight Settings</button>
     </div>
     <div class="card">
-      <div class="card-title">📊 Score Completion Status</div>
-      <div id="status-out"></div>
-    </div>
-    <div class="card">
       <div class="card-title">🏌️ Saturday Scores by Course</div>
       <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Use this to set flight thresholds. Shows all completed Saturday scores sorted lowest to highest per course.</p>
       <div style="display:flex;gap:10px;margin-bottom:12px">
@@ -282,16 +278,28 @@ select:focus,input:focus{border-color:var(--green);}
       <div id="sat-scores-out"></div>
     </div>
     <div class="card">
+      <div class="card-title">📊 Score Completion Status</div>
+      <div id="status-out"></div>
+    </div>
+    <div class="card">
       <div class="card-title">📥 Export Scores to Excel</div>
       <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Downloads a CSV file openable in Excel with all hole-by-hole team scores.</p>
       <button class="btn btn-gold" onclick="exportCSV()">⬇ Download Score Export (.csv)</button>
     </div>
     <div class="card">
-      <div class="card-title">🔑 Change PIN</div>
-      <label>New PIN</label><input type="password" id="pin1" style="margin-bottom:8px">
-      <label>Confirm PIN</label><input type="password" id="pin2" style="margin-bottom:8px">
-      <button class="btn btn-gold" onclick="changePin()">Update PIN</button>
+      <div class="card-title">🔑 Change Scorer PIN</div>
+      <label>New Scorer PIN</label><input type="password" id="pin1" style="margin-bottom:8px">
+      <label>Confirm Scorer PIN</label><input type="password" id="pin2" style="margin-bottom:8px">
+      <button class="btn btn-gold" onclick="changePin()">Update Scorer PIN</button>
       <div id="pin-msg" style="font-size:13px;margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔐 Change Admin PIN</div>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:10px">Used to protect test data population and score clearing. Default: <strong>ADMIN2026</strong></p>
+      <label>New Admin PIN</label><input type="password" id="apin1" style="margin-bottom:8px">
+      <label>Confirm Admin PIN</label><input type="password" id="apin2" style="margin-bottom:8px">
+      <button class="btn btn-gold" onclick="changeAdminPin()">Update Admin PIN</button>
+      <div id="apin-msg" style="font-size:13px;margin-top:6px"></div>
     </div>
     <div class="card">
       <div class="card-title">🧪 Test Data</div>
@@ -1036,23 +1044,42 @@ function changePin(){
   if(!p1){msg.style.color='red';msg.textContent='Enter a new PIN.';return;}
   if(p1!==p2){msg.style.color='red';msg.textContent='PINs do not match.';return;}
   store('pin',p1.toUpperCase());
-  msg.style.color='green';msg.textContent='PIN updated!';
+  msg.style.color='green';msg.textContent='Scorer PIN updated!';
   document.getElementById('pin1').value='';document.getElementById('pin2').value='';
+}
+function changeAdminPin(){
+  const p1=document.getElementById('apin1').value;
+  const p2=document.getElementById('apin2').value;
+  const msg=document.getElementById('apin-msg');
+  if(!p1){msg.style.color='red';msg.textContent='Enter a new Admin PIN.';return;}
+  if(p1!==p2){msg.style.color='red';msg.textContent='PINs do not match.';return;}
+  store('admin_pin',p1.toUpperCase());
+  msg.style.color='green';msg.textContent='Admin PIN updated!';
+  document.getElementById('apin1').value='';document.getElementById('apin2').value='';
 }
 
 function clearAll(){
+  const adminPin = prompt('Enter admin security PIN to clear all scores:');
+  if(!adminPin) return;
+  if(adminPin.toUpperCase() !== load('admin_pin','ADMIN2026')){
+    showToast('❌ Incorrect admin PIN'); return;
+  }
   if(!confirm('Delete ALL scores? This cannot be undone.')) return;
-  if(!confirm('FINAL CONFIRMATION – delete everything?')) return;
   db.ref('scores').remove();
   db.ref('specials').remove();
   Object.keys(_scores).forEach(k=>delete _scores[k]);
   Object.keys(_specials).forEach(k=>delete _specials[k]);
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
+  curTeam=null;
+  document.getElementById('cardPanel').style.display='none';
   TEAMS.forEach(t=>{
     ['acc','gcc'].forEach(c=>{
       try{localStorage.removeItem('tci2026_photo_'+t.id+'_'+c);}catch(e){}
     });
   });
-  showToast('All scores cleared');
+  showToast('✅ All scores cleared');
+  filterTeams();
+  renderLB();
   renderAdmin();
 }
 
@@ -1133,6 +1160,11 @@ function randomHoleScore(par){
 }
 
 function populateTestScores(day){
+  const adminPin = prompt('Enter admin security PIN to populate test scores:');
+  if(!adminPin) return;
+  if(adminPin.toUpperCase() !== load('admin_pin','ADMIN2026')){
+    showToast('❌ Incorrect admin PIN'); return;
+  }
   const label = day==='sat' ? 'Saturday' : 'Sunday';
   if(!confirm('Populate '+label+' test scores for all 152 teams? This will overwrite any existing '+label+' scores.')) return;
 
@@ -1262,11 +1294,16 @@ function initApp(){
         if(data[tid][course]){
           const d=data[tid][course];
           d.photo=load('photo_'+tid+'_'+course,null);
-          _scores[tid+'_'+course]=d;
+          // Don't overwrite cache for the team currently being edited
+          const activeKey = curTeam ? curTeam.id+'_'+getScoreCourse() : null;
+          if(tid+'_'+course !== activeKey){
+            _scores[tid+'_'+course]=d;
+          }
         }
       });
     });
     renderLB();
+    filterTeams(); // refresh status badges in team list
   });
 }
 </script>

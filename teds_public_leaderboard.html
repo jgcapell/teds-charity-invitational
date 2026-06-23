@@ -77,19 +77,7 @@ tr:hover td{background:#fafafa;}
   <div class="tab on" onclick="switchTab('lb',this)">🏆 Leaderboard</div>
   <div class="tab" onclick="switchTab('sp',this)">⭐ Special Awards</div>
 </div>
-<div id="sp-controls" style="display:none;background:#f0f0f0;padding:10px 16px;display:none;">
-  <div style="max-width:820px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-    <span style="font-size:12px;font-weight:700;color:var(--gray);">Viewing:</span>
-    <select id="sp-day-pub" onchange="loadAndRenderSpecials()" style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
-      <option value="sat">Saturday Jul 11</option>
-      <option value="sun">Sunday Jul 12</option>
-    </select>
-    <select id="sp-course-pub" onchange="loadAndRenderSpecials()" style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
-      <option value="acc">Anniston CC</option>
-      <option value="gcc">Gadsden CC</option>
-    </select>
-  </div>
-</div>
+
 
 <div class="content">
   <div id="v-lb" class="view on"></div>
@@ -206,8 +194,6 @@ function switchTab(v,el){
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
   document.getElementById('v-'+v).classList.add('on');
   el.classList.add('on');
-  const ctrl=document.getElementById('sp-controls');
-  if(ctrl) ctrl.style.display=(v==='sp')?'block':'none';
   if(v==='sp') loadAndRenderSpecials();
 }
 
@@ -284,45 +270,55 @@ function renderLB(){
 }
 
 function renderSpecials(){
-  const day=(document.getElementById('sp-day-pub')||{value:'sat'}).value;
-  const course=(document.getElementById('sp-course-pub')||{value:'acc'}).value;
-  const key=day+'_'+course;
-  const sp=_specials[key]||{};
-  const par3=course==='acc'?ACC_PAR3:GCC_PAR3;
-  const courseLabel=course==='acc'?'Anniston CC':'Gadsden CC';
-  const dayLabel=day==='sat'?'Saturday Jul 11':'Sunday Jul 12';
-  const fullLabel=courseLabel+' · '+dayLabel;
-  let html='';
+  function specialBlock(key, courseLabel, dayLabel){
+    const sp=_specials[key]||{};
+    const course=key.includes('acc')?'acc':'gcc';
+    const par3=course==='acc'?ACC_PAR3:GCC_PAR3;
+    let html=`<div style="margin-bottom:24px">`;
+    html+=`<div class="sp-title" style="font-size:16px">⭐ ${courseLabel} · ${dayLabel}</div>`;
+    html+=`<div class="sp-subtitle">$250 cash prizes per category</div>`;
+    html+=`<div class="sp-grid">`;
 
-  html+=`<div class="sp-title">⭐ ${fullLabel}</div>`;
-  html+='<div class="sp-subtitle">$250 cash prizes per category · independent each day</div>';
-  html+='<div class="sp-grid">';
+    // Skins
+    const skins=[];
+    for(let h=0;h<18;h++){
+      const sk=sp['skin_'+h];
+      if(sk&&sk.teamId){const tm=TEAMS.find(t=>t.id===sk.teamId);if(tm)skins.push({h:h+1,name:tm.name,score:sk.score});}
+    }
+    html+=`<div class="sp-card"><h3>🎰 Skins <span class="prize-badge">$250/hole</span></h3>`;
+    if(skins.length){
+      skins.forEach(s=>{html+=`<div class="sp-row"><span class="sp-lbl">Hole ${s.h}</span><span class="sp-win">${s.name}${s.score?' ('+s.score+')':''}</span></div>`;});
+    } else { html+='<div class="sp-pend">No skins awarded yet</div>'; }
+    html+='</div>';
 
-  // Skins
-  const skins=[];
-  for(let h=0;h<18;h++){
-    const sk=sp['skin_'+h];
-    if(sk&&sk.teamId){const tm=TEAMS.find(t=>t.id===sk.teamId);if(tm)skins.push({h:h+1,name:tm.name,score:sk.score});}
+    // CTP + Longest Putt
+    html+=`<div class="sp-card"><h3>🎯 Closest to Pin <span class="prize-badge">$250</span></h3>`;
+    par3.forEach(h=>{
+      const ctp=sp['ctp_'+h]||{};
+      const tm=ctp.teamId?TEAMS.find(t=>t.id===ctp.teamId):null;
+      html+=`<div class="sp-row"><span class="sp-lbl">Hole ${h} (Par 3)</span><span class="${tm?'sp-win':'sp-pend'}">${tm?tm.name:'Pending'}</span></div>`;
+    });
+    const lp=sp['lp_18']||{};
+    const lpTm=lp.teamId?TEAMS.find(t=>t.id===lp.teamId):null;
+    html+=`<div class="sp-row" style="margin-top:8px;border-top:1px solid var(--lite);padding-top:8px">
+      <span class="sp-lbl">🏌️ Longest Putt H18</span>
+      <span class="${lpTm?'sp-win':'sp-pend'}">${lpTm?lpTm.name:'Pending'}</span></div>`;
+    html+='</div>';
+    html+='</div>'; // sp-grid
+    html+='</div>'; // block
+    return html;
   }
-  html+=`<div class="sp-card"><h3>🎰 Skins <span class="prize-badge">$250/hole</span></h3>`;
-  if(skins.length){
-    skins.forEach(s=>{html+=`<div class="sp-row"><span class="sp-lbl">Hole ${s.h}</span><span class="sp-win">${s.name}${s.score?' ('+s.score+')':''}</span></div>`;});
-  } else { html+='<div class="sp-pend">No skins awarded yet</div>'; }
-  html+='</div>';
 
-  // CTP
-  html+=`<div class="sp-card"><h3>🎯 Closest to Pin <span class="prize-badge">$250</span></h3>`;
-  par3.forEach(h=>{
-    const ctp=sp['ctp_'+h]||{};
-    const tm=ctp.teamId?TEAMS.find(t=>t.id===ctp.teamId):null;
-    html+=`<div class="sp-row"><span class="sp-lbl">Hole ${h} (Par 3)</span><span class="${tm?'sp-win':'sp-pend'}">${tm?tm.name:'Pending'}</span></div>`;
-  });
-  const lp=sp['lp_18']||{};
-  const lpTm=lp.teamId?TEAMS.find(t=>t.id===lp.teamId):null;
-  html+=`<div class="sp-row" style="margin-top:10px;border-top:1px solid var(--lite);padding-top:10px"><span class="sp-lbl">🏌️ Longest Putt H18</span><span class="${lpTm?'sp-win':'sp-pend'}">${lpTm?lpTm.name:'Pending'}</span></div>`;
-  html+='</div>';
+  let html='';
+  // Saturday
+  html+=`<div style="background:var(--green);color:white;padding:10px 16px;border-radius:10px;font-weight:700;font-size:15px;margin-bottom:12px">⛳ Saturday · July 11, 2026</div>`;
+  html+=specialBlock('sat_acc','Anniston CC','Saturday Jul 11');
+  html+=specialBlock('sat_gcc','Gadsden CC','Saturday Jul 11');
+  // Sunday
+  html+=`<div style="background:var(--green);color:white;padding:10px 16px;border-radius:10px;font-weight:700;font-size:15px;margin-bottom:12px;margin-top:8px">⛳ Sunday · July 12, 2026</div>`;
+  html+=specialBlock('sun_acc','Anniston CC','Sunday Jul 12');
+  html+=specialBlock('sun_gcc','Gadsden CC','Sunday Jul 12');
 
-  html+='</div>'; // sp-grid
   document.getElementById('v-sp').innerHTML=html;
 }
 
@@ -346,13 +342,14 @@ db.ref('scores').on('value', snap=>{
 
 // Specials update when tab is viewed
 function loadAndRenderSpecials(){
-  const day=(document.getElementById('sp-day-pub')||{value:'sat'}).value;
-  const course=(document.getElementById('sp-course-pub')||{value:'acc'}).value;
-  const key=day+'_'+course;
-  db.ref('specials/'+key).once('value').then(snap=>{
-    _specials[key]=snap.val()||{};
-    renderSpecials();
-  });
+  // Load all 4 day+course combos in parallel
+  const combos=['sat_acc','sat_gcc','sun_acc','sun_gcc'];
+  const promises=combos.map(key=>
+    db.ref('specials/'+key).once('value').then(snap=>{
+      _specials[key]=snap.val()||{};
+    })
+  );
+  Promise.all(promises).then(()=>renderSpecials());
 }
 
 // Initial load
