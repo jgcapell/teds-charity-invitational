@@ -992,14 +992,14 @@ function generateSunday(sunCourse){
   let html='<div style="overflow-x:auto"><table class="tt-tbl"><thead><tr><th>Sun Tee</th><th>Team</th><th>Flight</th><th>Sat Score</th></tr></thead><tbody>';
   let anyScored=false;
 
-  // Process flights in order (Championship=0 … Flight5=5, then unassigned)
-  const flightKeys=[...Array(flights.length).keys(),'unassigned'];
+  // Process flights in REVERSE order: Flight 5 (worst) tees first, Championship tees last
+  const flightKeys=['unassigned',...Array(flights.length).keys()].reverse();
   flightKeys.forEach(k=>{
     const group=(flightGroups[k]||[]).slice();
     if(!group.length) return;
     const scored=group.filter(t=>t.satTotal!==null).sort((a,b)=>{
-      if(b.satTotal!==a.satTotal) return b.satTotal-a.satTotal; // worst first
-      return (b.satTT||'00:00').localeCompare(a.satTT||'00:00'); // later sat tee first
+      if(b.satTotal!==a.satTotal) return b.satTotal-a.satTotal; // worst score tees first
+      return (b.satTT||'00:00').localeCompare(a.satTT||'00:00'); // later sat tee = earlier sun tee
     });
     const unscored=group.filter(t=>t.satTotal===null).sort((a,b)=>(a.satTT||'').localeCompare(b.satTT||''));
     const ordered=[...scored,...unscored];
