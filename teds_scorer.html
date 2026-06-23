@@ -447,6 +447,15 @@ function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String
 </script>
 <script>
 // ═══════════════════════════════════════════════
+// SCORING STATE
+// ═══════════════════════════════════════════════
+let curTeam = null;
+let curCourse = 'acc';
+let curHalf = 'front';
+let photoData = null;
+const _buf = {}; // session buffer: hole inputs persist across front/back toggle
+
+// ═══════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════
 const DEFAULT_PIN = 'TEDS2026';
