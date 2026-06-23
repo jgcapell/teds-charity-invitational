@@ -351,10 +351,9 @@ function getTeamFlight(tid){
 }
 // ── Team helpers ──────────────────────────────────────────────
 function getSatCourse(tid){
-  // teams 001-076 have acc_tee_time -> played ACC Saturday
-  // teams 077-152 have gcc_tee_time -> played GCC Saturday
   const t=TEAMS.find(x=>x.id===tid);
-  return t&&t.acc_tee_time?'acc':'gcc';
+  // acc_tee_time set = played ACC on Saturday; gcc_tee_time only = played GCC on Saturday
+  return (t&&t.acc_tee_time) ? 'acc' : 'gcc';
 }
 function getSunCourse(tid){ return getSatCourse(tid)==='acc'?'gcc':'acc'; }
 function getSatPar(tid){ return getSatCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
@@ -551,40 +550,42 @@ function onCourseChange(){
 }
 
 function filterTeams(){
-  curCourse = document.getElementById('sc-course').value;
+  // Always read fresh from DOM - no stale state
+  const course = document.getElementById('sc-course').value;
   const day = document.getElementById('sc-day').value;
+  curCourse = course;
   const q = document.getElementById('teamQ').value.toLowerCase();
-  // Saturday: ACC teams play ACC, GCC teams play GCC
-  // Sunday: ACC teams play GCC, GCC teams play ACC (courses swapped)
+
   const filtered = TEAMS.filter(t=>{
-    const satC = getSatCourse(t.id);
-    const teamCourseToday = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
-    return teamCourseToday===curCourse && t.name.toLowerCase().includes(q);
+    // Which course does this team play today?
+    const satC = t.acc_tee_time ? 'acc' : 'gcc';
+    const todayCourse = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
+    return todayCourse===course && t.name.toLowerCase().includes(q);
   }).sort((a,b)=>{
-    // Sort by Saturday tee time for reference
     const ta=a.acc_tee_time||a.gcc_tee_time;
     const tb=b.acc_tee_time||b.gcc_tee_time;
     if(ta&&tb) return ta.localeCompare(tb);
     if(ta) return -1; if(tb) return 1;
     return a.name.localeCompare(b.name);
   });
+
   document.getElementById('teamList').innerHTML = filtered.slice(0,80).map(t=>{
-    const satC=getSatCourse(t.id);
+    const satC = t.acc_tee_time ? 'acc' : 'gcc';
     const scoreCourse = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
     const ex = getScore(t.id, scoreCourse);
     const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
     const badge = holes===18?'✅ ':(holes>0?'⏳ ':'');
     const satTT = t.acc_tee_time||t.gcc_tee_time;
     const ttStr = satTT ? satTT.substring(0,5) : '–';
-    return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${curCourse.toUpperCase()} · Sat tee: ${ttStr}</div></div>`;
+    return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${scoreCourse.toUpperCase()} · Sat tee: ${ttStr}</div></div>`;
   }).join('');
 }
 
 function getScoreCourse(){
-  // Which course does the current team play on the selected day?
-  if(!curTeam) return curCourse;
+  if(!curTeam) return document.getElementById('sc-course').value;
   const day=document.getElementById('sc-day').value;
-  const satC=getSatCourse(curTeam.id);
+  // Use inline check to avoid any lookup issues
+  const satC = curTeam.acc_tee_time ? 'acc' : 'gcc';
   return day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
 }
 function selectTeam(tid){
