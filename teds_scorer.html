@@ -992,59 +992,73 @@ function renderTT(){
 }
 
 function generateSunday(sunCourse){
-  // Teams that play sunCourse on Sunday = those who played the OTHER course on Saturday
   const satCourse=sunCourse==='acc'?'gcc':'acc';
   const flights=getFlights();
   const eligible=TEAMS.filter(t=>satCourse==='acc'?t.acc_tee_time!==null:t.gcc_tee_time!==null);
 
-  // Enrich with Saturday score and tee time
+  // Enrich each team with Saturday score, tee time, and flight
   const rich=eligible.map(t=>{
     const s=getScore(t.id,satCourse);
-    const full=s&&s.team.filter(x=>x!==null).length===18;
-    const total=full?s.team.reduce((a,b)=>a+b,0):null;
+    const dnf=s&&s.dnf===true;
+    const full=!dnf&&s&&s.team.filter(x=>x!==null).length===18;
+    const total=dnf?null:(full?s.team.reduce((a,b)=>a+b,0):null);
     const satTT=satCourse==='acc'?t.acc_tee_time:t.gcc_tee_time;
     const fi=getTeamFlight(t.id);
-    return {...t,satTotal:total,satTT,fi};
+    return {...t,satTotal:total,satTT,fi,dnf};
   });
 
-  // Group by flight, sort each flight: worst score first; ties by later sat tee first
-  const flightGroups={};
-  rich.forEach(t=>{
-    const k=t.fi===-1?'unassigned':t.fi;
-    if(!flightGroups[k]) flightGroups[k]=[];
-    flightGroups[k].push(t);
+  // Sort ALL 76 teams together — worst score tees first, best score tees last
+  // Within same score: later Saturday tee = earlier Sunday tee
+  // DNF and unscored go first (earliest tee times)
+  const flightOrder=(fi)=>{
+    // For sort stability across flights: unassigned=-1 sorts first (earliest tee)
+    // Then Flight 5 (index 5) ... Flight 1 (index 1) ... Championship (index 0) last
+    if(fi===-1) return -1;
+    return fi; // higher index = worse flight = earlier tee time
+  };
+
+  const ordered=rich.slice().sort((a,b)=>{
+    // DNF/unscored always first
+    const aHasScore=a.satTotal!==null&&!a.dnf;
+    const bHasScore=b.satTotal!==null&&!b.dnf;
+    if(!aHasScore&&!bHasScore) return (a.satTT||'00:00').localeCompare(b.satTT||'00:00');
+    if(!aHasScore) return -1;
+    if(!bHasScore) return 1;
+    // Both scored: sort by flight first (worst flight tees first)
+    if(flightOrder(b.fi)!==flightOrder(a.fi)) return flightOrder(b.fi)-flightOrder(a.fi);
+    // Same flight: worst score first
+    if(b.satTotal!==a.satTotal) return b.satTotal-a.satTotal;
+    // Tie: later Saturday tee = earlier Sunday
+    return (b.satTT||'00:00').localeCompare(a.satTT||'00:00');
   });
 
   const firstSatTime=SAT[satCourse][0][0];
   let sunMin=timeToMin(firstSatTime);
   const INTERVAL=10;
+  const anyScored=ordered.some(t=>t.satTotal!==null);
 
   let html='<div style="overflow-x:auto"><table class="tt-tbl"><thead><tr><th>Sun Tee</th><th>Team</th><th>Flight</th><th>Sat Score</th></tr></thead><tbody>';
-  let anyScored=false;
 
-  // Process flights in REVERSE order: Flight 5 (worst) tees first, Championship tees last
-  const flightKeys=['unassigned',...Array(flights.length).keys()].reverse();
-  flightKeys.forEach(k=>{
-    const group=(flightGroups[k]||[]).slice();
-    if(!group.length) return;
-    const scored=group.filter(t=>t.satTotal!==null).sort((a,b)=>{
-      if(b.satTotal!==a.satTotal) return b.satTotal-a.satTotal; // worst score tees first
-      return (b.satTT||'00:00').localeCompare(a.satTT||'00:00'); // later sat tee = earlier sun tee
-    });
-    const unscored=group.filter(t=>t.satTotal===null).sort((a,b)=>(a.satTT||'').localeCompare(b.satTT||''));
-    const ordered=[...scored,...unscored];
-    anyScored=anyScored||(scored.length>0);
-    const fname=k==='unassigned'?'Unassigned':flights[k].name;
-
-    for(let i=0;i<ordered.length;i+=2){
-      const t1=ordered[i],t2=ordered[i+1];
-      const tStr=minToTime(sunMin);
-      html+=`<tr class="fs"><td rowspan="2"><span class="tee-badge">${tStr}</span></td><td style="font-weight:600">${t1.name}</td><td style="font-size:11px">${fname}</td><td>${t1.satTotal??'–'}</td></tr>`;
-      html+=`<tr><td style="font-weight:600">${t2?t2.name:'BYE'}</td><td style="font-size:11px">${fname}</td><td>${t2?(t2.satTotal??'–'):''}</td></tr>`;
-      sunMin+=INTERVAL;
-      if(((i/2+1)%8===0)) sunMin+=10;
+  // Pair sequentially — no BYEs, pairs can cross flight boundaries
+  for(let i=0;i<ordered.length;i+=2){
+    const t1=ordered[i], t2=ordered[i+1];
+    const tStr=minToTime(sunMin);
+    const f1=t1.fi>=0?flights[t1.fi]?.name:'Unassigned';
+    const f2=t2?(t2.fi>=0?flights[t2.fi]?.name:'Unassigned'):'';
+    const s1=t1.dnf?'DNF':(t1.satTotal??'–');
+    const s2=t2?(t2.dnf?'DNF':(t2.satTotal??'–')):'';
+    html+=`<tr class="fs"><td rowspan="2"><span class="tee-badge">${tStr}</span></td>
+      <td style="font-weight:600">${t1.name}</td>
+      <td style="font-size:11px;color:var(--gray)">${f1}</td>
+      <td>${s1}</td></tr>`;
+    if(t2){
+      html+=`<tr><td style="font-weight:600">${t2.name}</td>
+        <td style="font-size:11px;color:var(--gray)">${f2}</td>
+        <td>${s2}</td></tr>`;
     }
-  });
+    sunMin+=INTERVAL;
+    if(((i/2+1)%8===0)) sunMin+=10;
+  }
 
   html+='</tbody></table></div>';
   if(!anyScored) html='<div style="color:var(--gray);padding:16px;font-size:13px">Enter Saturday scores and configure flights to generate Sunday tee times.</div>'+html;
