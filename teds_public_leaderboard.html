@@ -125,11 +125,15 @@ let _flights=[
 function getFlights(){return _flights;}
 function getTeamFlight(tid){
   const flights=getFlights();
-  const s=getScore(tid,'acc');
-  const sat=s&&s.team.filter(x=>x!==null).length===18?s.team.reduce((a,b)=>a+b,0):null;
-  if(sat===null)return -1;
-  for(let i=0;i<flights.length;i++){if(sat>=flights[i].min&&sat<=flights[i].max)return i;}
-  return flights.length-1;
+  const satC = TEAMS.find(t=>t.id===tid)?.acc_tee_time ? 'acc' : 'gcc';
+  const s=getScore(tid,satC);
+  const sat=s&&s.team.filter(x=>x!==null).length===18
+    ? s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0) : null;
+  if(sat===null) return -1;
+  for(let i=0;i<flights.length;i++){
+    if(flights[i].course===satC && sat>=flights[i].min && sat<=flights[i].max) return i;
+  }
+  return -1;
 }
 // ── Team helpers ──────────────────────────────────────────────
 function getSatCourse(tid){

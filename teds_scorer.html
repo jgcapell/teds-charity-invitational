@@ -273,6 +273,15 @@ select:focus,input:focus{border-color:var(--green);}
       <div id="status-out"></div>
     </div>
     <div class="card">
+      <div class="card-title">🏌️ Saturday Scores by Course</div>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Use this to set flight thresholds. Shows all completed Saturday scores sorted lowest to highest per course.</p>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="renderSatScores('gcc')">GCC Saturday Scores</button>
+        <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="renderSatScores('acc')">ACC Saturday Scores</button>
+      </div>
+      <div id="sat-scores-out"></div>
+    </div>
+    <div class="card">
       <div class="card-title">📥 Export Scores to Excel</div>
       <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Downloads a CSV file openable in Excel with all hole-by-hole team scores.</p>
       <button class="btn btn-gold" onclick="exportCSV()">⬇ Download Score Export (.csv)</button>
@@ -340,20 +349,25 @@ function saveSpecialsForKey(key,data){
 
 // ── Flights (local) ───────────────────────────────────────────
 function getFlights(){return load('flights',[
-  {name:'Championship',color:'#1a3a1a',min:0,max:999},
-  {name:'Flight 1',color:'#2d6a2d',min:0,max:999},
-  {name:'Flight 2',color:'#c9a227',min:0,max:999},
-  {name:'Flight 3',color:'#8b4513',min:0,max:999},
-  {name:'Flight 4',color:'#1a4a6a',min:0,max:999},
-  {name:'Flight 5',color:'#6a1a4a',min:0,max:999}
+  {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
+  {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
+  {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
+  {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
+  {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
+  {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
 ]);}
 function getTeamFlight(tid){
   const flights=getFlights();
-  const s=getScore(tid,'acc');
-  const sat=s&&s.team.filter(x=>x!==null).length===18?s.team.reduce((a,b)=>a+b,0):null;
-  if(sat===null)return -1;
-  for(let i=0;i<flights.length;i++){if(sat>=flights[i].min&&sat<=flights[i].max)return i;}
-  return flights.length-1;
+  const satC = TEAMS.find(t=>t.id===tid)?.acc_tee_time ? 'acc' : 'gcc';
+  const s=getScore(tid,satC);
+  const sat=s&&s.team.filter(x=>x!==null).length===18
+    ? s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0) : null;
+  if(sat===null) return -1;
+  // Match on both score range AND course
+  for(let i=0;i<flights.length;i++){
+    if(flights[i].course===satC && sat>=flights[i].min && sat<=flights[i].max) return i;
+  }
+  return -1;
 }
 // ── Team helpers ──────────────────────────────────────────────
 function getSatCourse(tid){
@@ -964,10 +978,16 @@ function renderAdmin(){
   const flights=getFlights();
   let html='';
   flights.forEach((f,i)=>{
+    const courseVal = f.course||( i<3?'gcc':'acc');
     html+=`<div class="f-config"><h3>${f.name}</h3>
       <label>Name</label><input type="text" id="fn${i}" value="${f.name}">
-      <label>Min Score (inclusive)</label><input type="number" id="fmin${i}" value="${f.min}">
-      <label>Max Score (inclusive)</label><input type="number" id="fmax${i}" value="${f.max}">
+      <label>Saturday Course</label>
+      <select id="fc${i}" style="margin-bottom:7px;font-size:13px;width:100%;padding:7px;border:1px solid #ddd;border-radius:6px">
+        <option value="gcc" ${courseVal==='gcc'?'selected':''}>GCC Saturday (Champ / F1 / F2)</option>
+        <option value="acc" ${courseVal==='acc'?'selected':''}>ACC Saturday (F3 / F4 / F5)</option>
+      </select>
+      <label>Min Score (inclusive)</label><input type="number" id="fmin${i}" value="${f.min===999?'':f.min}" placeholder="e.g. 58">
+      <label>Max Score (inclusive)</label><input type="number" id="fmax${i}" value="${f.max===999||f.max===0?'':f.max}" placeholder="e.g. 65">
     </div>`;
   });
   document.getElementById('flight-cfg').innerHTML=html;
@@ -1005,6 +1025,8 @@ function saveFlights(){
   store('flights',flights);
   db.ref('flights').set(flights);
   showToast('Flights saved!');
+  renderLB();
+  renderAdmin(); // refresh to show saved values
 }
 
 function changePin(){
@@ -1032,6 +1054,68 @@ function clearAll(){
   });
   showToast('All scores cleared');
   renderAdmin();
+}
+
+// ═══════════════════════════════════════════════
+// SATURDAY SCORE FILTER (for setting flights)
+// ═══════════════════════════════════════════════
+function renderSatScores(course){
+  const label = course==='gcc' ? 'Gadsden CC' : 'Anniston CC';
+  const par = course==='gcc' ? GCC_TOTAL_PAR : ACC_TOTAL_PAR;
+
+  // Get all teams that played this course on Saturday
+  const teams = TEAMS.filter(t=>{
+    const satC = t.acc_tee_time ? 'acc' : 'gcc';
+    return satC === course;
+  });
+
+  // Get their scores
+  const withScores = teams.map(t=>{
+    const s = getScore(t.id, course);
+    const holes = s ? s.team.filter(x=>x!==null).length : 0;
+    const total = holes===18 ? s.team.reduce((a,b)=>a+b,0) : null;
+    return {...t, total, holes, vsPar: total!==null ? total-par : null};
+  });
+
+  const scored = withScores.filter(t=>t.total!==null).sort((a,b)=>a.total-b.total);
+  const unscored = withScores.filter(t=>t.total===null);
+
+  let html = `<div style="font-weight:700;font-size:13px;color:var(--green);margin-bottom:8px">
+    ${label} — ${scored.length} of ${teams.length} complete</div>`;
+
+  if(!scored.length){
+    html += '<div style="color:var(--gray);font-size:13px">No complete scores yet for this course.</div>';
+    document.getElementById('sat-scores-out').innerHTML = html;
+    return;
+  }
+
+  html += '<div style="overflow-x:auto"><table class="tt-tbl"><thead><tr>';
+  html += '<th>#</th><th>Team</th><th style="text-align:center">Score</th><th style="text-align:center">vs Par</th><th style="text-align:center">Flight</th>';
+  html += '</tr></thead><tbody>';
+
+  scored.forEach((t,i)=>{
+    const fi = getTeamFlight(t.id);
+    const flights = getFlights();
+    const fName = fi>=0 ? flights[fi].name : '—';
+    const fColor = fi>=0 ? flights[fi].color : '#aaa';
+    const vpStr = t.vsPar===0?'E':t.vsPar>0?'+'+t.vsPar:t.vsPar;
+    const vpColor = t.vsPar<0?'var(--red)':t.vsPar===0?'var(--green)':'#333';
+    html += `<tr>
+      <td style="font-size:12px;color:var(--gray)">${i+1}</td>
+      <td style="font-weight:600;font-size:13px">${t.name}</td>
+      <td style="text-align:center;font-weight:700">${t.total}</td>
+      <td style="text-align:center;color:${vpColor};font-weight:700">${vpStr}</td>
+      <td style="text-align:center"><span style="background:${fColor};color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${fName}</span></td>
+    </tr>`;
+  });
+
+  if(unscored.length){
+    html += `<tr><td colspan="5" style="font-size:12px;color:var(--gray);padding:8px;border-top:2px solid var(--lite)">
+      ${unscored.length} teams not yet scored</td></tr>`;
+  }
+
+  html += '</tbody></table></div>';
+  document.getElementById('sat-scores-out').innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════
