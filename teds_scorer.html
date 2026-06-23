@@ -165,6 +165,13 @@ select:focus,input:focus{border-color:var(--green);}
       <div class="card-title">📋 Select Team & Course</div>
       <div class="row">
         <div class="f1">
+          <label>Day</label>
+          <select id="sc-day" onchange="onDayChange()">
+            <option value="sat">Saturday Jul 11</option>
+            <option value="sun">Sunday Jul 12</option>
+          </select>
+        </div>
+        <div class="f1">
           <label>Course</label>
           <select id="sc-course" onchange="onCourseChange()">
             <option value="acc">Anniston CC (Low Ball · Par 70)</option>
@@ -342,22 +349,67 @@ function getTeamFlight(tid){
   for(let i=0;i<flights.length;i++){if(sat>=flights[i].min&&sat<=flights[i].max)return i;}
   return flights.length-1;
 }
+// ── Team helpers ──────────────────────────────────────────────
+function getSatCourse(tid){
+  // teams 001-076 have acc_tee_time -> played ACC Saturday
+  // teams 077-152 have gcc_tee_time -> played GCC Saturday
+  const t=TEAMS.find(x=>x.id===tid);
+  return t&&t.acc_tee_time?'acc':'gcc';
+}
+function getSunCourse(tid){ return getSatCourse(tid)==='acc'?'gcc':'acc'; }
+function getSatPar(tid){ return getSatCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
+function getSunPar(tid){ return getSunCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
+
 function getTeamStats(tid){
-  const acc=getScore(tid,'acc'),gcc=getScore(tid,'gcc');
-  const accH=acc?acc.team.filter(x=>x!==null):[];
-  const gccH=gcc?gcc.team.filter(x=>x!==null):[];
-  const accFull=accH.length===18,gccFull=gccH.length===18;
-  const accTotal=accFull?acc.team.reduce((a,b)=>a+b,0):null;
-  const gccTotal=gccFull?gcc.team.reduce((a,b)=>a+b,0):null;
-  const total=(accFull&&gccFull)?accTotal+gccTotal:null;
-  return{accTotal,gccTotal,total,
-    totalVsPar:total!==null?total-(ACC_TOTAL_PAR+GCC_TOTAL_PAR):null,
-    accVsPar:accFull?accTotal-ACC_TOTAL_PAR:null,
-    gccVsPar:gccFull?gccTotal-GCC_TOTAL_PAR:null,
-    accFull,gccFull};
+  const satC=getSatCourse(tid), sunC=getSunCourse(tid);
+  const satS=getScore(tid,satC), sunS=getScore(tid,sunC);
+  // Use running total (partial ok) for display; full-round flag for official scoring
+  const satHoles=satS?satS.team.filter(x=>x!==null):[];
+  const sunHoles=sunS?sunS.team.filter(x=>x!==null):[];
+  const satFull=satHoles.length===18, sunFull=sunHoles.length===18;
+  const satTotal=satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const sunTotal=sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const satPar=getSatPar(tid), sunPar=getSunPar(tid);
+  const total=(satFull&&sunFull)?satTotal+sunTotal:null;
+  // Legacy aliases for leaderboard columns (R1=acc, R2=gcc)
+  const accTotal=satC==='acc'?satTotal:(sunC==='acc'?sunTotal:null);
+  const gccTotal=satC==='gcc'?satTotal:(sunC==='gcc'?sunTotal:null);
+  return{
+    satTotal, sunTotal, total,
+    satFull, sunFull,
+    satPar, sunPar,
+    satVsPar:satTotal!==null?satTotal-satPar:null,
+    sunVsPar:sunTotal!==null?sunTotal-sunPar:null,
+    totalVsPar:total!==null?total-(satPar+sunPar):null,
+    accTotal, gccTotal,  // kept for leaderboard R1/R2 display
+    satHolesPlayed:satHoles.length,
+    sunHolesPlayed:sunHoles.length
+  };
+}
+function getFlights(){return load('flights',[
+  {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
+  {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
+  {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
+  {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
+  {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
+  {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
+]);}
+function getTeamFlight(tid){
+  const flights=getFlights();
+  const satC=getSatCourse(tid);
+  const s=getScore(tid,satC);
+  const satScore=s&&s.team.filter(x=>x!==null).length===18
+    ?s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  if(satScore===null)return -1;
+  for(let i=0;i<flights.length;i++){
+    if(flights[i].course===satC&&satScore>=flights[i].min&&satScore<=flights[i].max)return i;
+  }
+  return -1;
 }
 function fmtVsPar(v){if(v===null)return'–';if(v===0)return'<span class="even">E</span>';if(v<0)return'<span class="under">'+v+'</span>';return'<span class="over">+'+v+'</span>';}
 function fmtScore(v){return v!==null?v:'–';}
+function timeToMin(t){if(!t)return 0;const p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 function timeToMin(t){if(!t)return 0;const p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
 function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 
@@ -408,85 +460,88 @@ function showView(v){
 // LEADERBOARD
 // ═══════════════════════════════════════════════
 function renderLB(){
-  const flights = getFlights();
-  const flightsConfigured = flights.some(f=>f.min!==0||f.max!==999);
-  const data = TEAMS.map(t=>({...t, s:getTeamStats(t.id), fi:getTeamFlight(t.id)}));
-  const anyScores = data.some(t=>t.s.accTotal!==null||t.s.gccTotal!==null);
-  let html = '';
+  const flights=getFlights();
+  const flightsConfigured=flights.some(f=>f.min!==0||f.max!==999);
+  const data=TEAMS.map(t=>({...t,s:getTeamStats(t.id),fi:getTeamFlight(t.id)}));
+  const anyScores=data.some(t=>t.s.satTotal!==null);
+  let html='';
 
   if(!anyScores){
-    html='<div class="card" style="text-align:center;color:var(--gray);padding:30px">No scores yet.</div>';
+    html='<div class="empty"><div class="ico">⛳</div><h2>Scoring In Progress</h2><p>Live results will appear here as scores are submitted.</p></div>';
     document.getElementById('lb-out').innerHTML=html;
     return;
   }
 
+  function sortKey(t){
+    // Sort by: complete 2-day total first, then complete 1-day, then partial, then no score
+    if(t.s.total!==null) return t.s.total;
+    if(t.s.satFull) return t.s.satTotal+10000;
+    if(t.s.satTotal!==null) return t.s.satTotal+20000;
+    return 99999;
+  }
+
+  function teamRow(t,pos){
+    const hasScore=t.s.satTotal!==null;
+    const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar)
+      :(t.s.satTotal!==null?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
+      :'<span class="no-sc">–</span>');
+    const partial=t.s.satTotal!==null&&!t.s.satFull?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':'';    return `<tr><td class="c"><span class="pos-badge ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
+      <td><span class="team-nm">${t.name}</span></td>
+      <td class="c">${vp}</td>
+      <td class="c">${t.s.satTotal!==null?t.s.satTotal+''+ partial:'–'}</td>
+      <td class="c">${t.s.sunTotal!==null?t.s.sunTotal:'–'}</td>
+      <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
+  }
+
   if(!flightsConfigured){
-    // Unified leaderboard — no flights configured yet
-    const allSorted=data.slice().sort((a,b)=>{
-      const aS=a.s.total!==null?a.s.total:(a.s.accTotal!==null?a.s.accTotal+999:(a.s.gccTotal!==null?a.s.gccTotal+999:9999));
-      const bS=b.s.total!==null?b.s.total:(b.s.accTotal!==null?b.s.accTotal+999:(b.s.gccTotal!==null?b.s.gccTotal+999:9999));
-      return aS-bS;
-    });
-    const scoredCount=allSorted.filter(t=>t.s.accTotal!==null||t.s.gccTotal!==null).length;
-    html+=`<div class="flight-hdr" style="background:#1a3a1a">Overall Standings <span>${scoredCount}/${allSorted.length} scored</span></div>`;
-    html+='<table class="lb-tbl"><thead><tr><th style="width:34px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
+    const sorted=data.slice().sort((a,b)=>sortKey(a)-sortKey(b));
+    const scoredCount=sorted.filter(t=>t.s.satTotal!==null).length;
+    html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
+    html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
     let pos=1;
-    allSorted.forEach(t=>{
-      const hasScore=t.s.accTotal!==null||t.s.gccTotal!==null;
-      const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-      const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar):(t.s.accTotal!==null?fmtVsPar(t.s.accVsPar):(t.s.gccTotal!==null?fmtVsPar(t.s.gccVsPar):'<span class="no-sc">–</span>'));
-      const r1=t.s.accTotal!==null?t.s.accTotal:(t.s.gccTotal!==null?t.s.gccTotal:null);
-      const r2=t.s.accTotal!==null&&t.s.gccTotal!==null?t.s.gccTotal:null;
-      html+=`<tr><td class="c"><span class="pos-badge ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
-        <td style="font-weight:600">${t.name}</td>
-        <td class="c">${vp}</td>
-        <td class="c">${fmtScore(r1)}</td>
-        <td class="c">${fmtScore(r2)}</td>
-        <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
-      if(hasScore) pos++;
+    sorted.forEach(t=>{
+      html+=teamRow(t,pos);
+      if(t.s.satTotal!==null) pos++;
     });
     html+='</tbody></table>';
   } else {
+    // GCC-Saturday flights first (Champ, F1, F2), then ACC-Saturday (F3, F4, F5)
     flights.forEach((f,fi)=>{
-      const inF = data.filter(t=>t.fi===fi);
-      const scored = inF.filter(t=>t.s.total!==null).sort((a,b)=>a.s.total-b.s.total);
-      const unscored = inF.filter(t=>t.s.total===null).sort((a,b)=>a.name.localeCompare(b.name));
-      const all = [...scored,...unscored];
-      if(!all.length) return;
-      html += `<div class="flight-hdr" style="background:${f.color}">${f.name} <span>${scored.length}/${all.length} complete</span></div>`;
-      html += '<table class="lb-tbl"><thead><tr><th style="width:34px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
-      all.forEach((t,idx)=>{
-        const pos = t.s.total!==null ? idx+1 : '–';
-        const pc = idx===0?'p1':idx===1?'p2':idx===2?'p3':'pn';
-        const vp = t.s.total!==null ? fmtVsPar(t.s.totalVsPar) : '<span class="no-sc">–</span>';
-        html += `<tr><td class="c"><span class="pos-badge ${t.s.total!==null?pc:'pn'}">${pos}</span></td>
-          <td style="font-weight:600">${t.name}</td>
-          <td class="c">${vp}</td>
-          <td class="c">${fmtScore(t.s.accTotal)}</td>
-          <td class="c">${fmtScore(t.s.gccTotal)}</td>
-          <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
-      });
-      html += '</tbody></table>';
+      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>sortKey(a)-sortKey(b));
+      if(!inF.length) return;
+      const scoredF=inF.filter(t=>t.s.satFull||t.s.total!==null).length;
+      html+=`<div class="flight-block">
+        <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>
+        <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>`;
+      let pos=1;
+      inF.forEach(t=>{html+=teamRow(t,pos);if(t.s.satTotal!==null)pos++;});
+      html+='</tbody></table></div>';
     });
-    const unassigned=data.filter(t=>t.fi===-1);
+    // Teams not yet assigned
+    const unassigned=data.filter(t=>t.fi===-1&&t.s.satTotal!==null).sort((a,b)=>sortKey(a)-sortKey(b));
     if(unassigned.length){
       html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
-      html+='<table class="lb-tbl"><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
-      unassigned.forEach(t=>{
-        html+=`<tr><td class="c"><span class="pos-badge pn">–</span></td><td style="font-weight:600">${t.name}</td><td class="c"><span class="no-sc">–</span></td><td class="c">–</td><td class="c">–</td><td class="c">–</td></tr>`;
-      });
+      html+='<table><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
+      let pos=1;
+      unassigned.forEach(t=>{html+=teamRow(t,pos++);});
       html+='</tbody></table>';
     }
   }
   document.getElementById('lb-out').innerHTML=html;
 }
 
-// ═══════════════════════════════════════════════
-// SCORE ENTRY
-// ═══════════════════════════════════════════════
-let curTeam=null, curCourse='acc', curHalf='front', photoData=null;
-const _buf={}; // session buffer: hole inputs persist across front/back toggle
-
+function onDayChange(){
+  const day=document.getElementById('sc-day').value;
+  const courseEl=document.getElementById('sc-course');
+  // On Saturday: show all teams for selected course
+  // On Sunday: swap courses (ACC-Sat teams now play GCC, vice versa)
+  // Just re-filter; course selection stays but teams list updates
+  curTeam=null;
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
+  document.getElementById('cardPanel').style.display='none';
+  filterTeams();
+}
 function onCourseChange(){
   curCourse = document.getElementById('sc-course').value;
   curTeam=null;
@@ -497,32 +552,47 @@ function onCourseChange(){
 
 function filterTeams(){
   curCourse = document.getElementById('sc-course').value;
+  const day = document.getElementById('sc-day').value;
   const q = document.getElementById('teamQ').value.toLowerCase();
-  const par = curCourse==='acc' ? ACC_PAR : GCC_PAR;
-  const filtered = TEAMS.filter(t=>t.name.toLowerCase().includes(q))
-    .sort((a,b)=>{
-      const ta=curCourse==='acc'?a.acc_tee_time:a.gcc_tee_time;
-      const tb=curCourse==='acc'?b.acc_tee_time:b.gcc_tee_time;
-      if(ta&&tb) return ta.localeCompare(tb);
-      if(ta) return -1; if(tb) return 1;
-      return a.name.localeCompare(b.name);
-    });
-  document.getElementById('teamList').innerHTML = filtered.slice(0,60).map(t=>{
-    const tt = curCourse==='acc'?t.acc_tee_time:t.gcc_tee_time;
-    const ex = getScore(t.id, curCourse);
+  // Saturday: ACC teams play ACC, GCC teams play GCC
+  // Sunday: ACC teams play GCC, GCC teams play ACC (courses swapped)
+  const filtered = TEAMS.filter(t=>{
+    const satC = getSatCourse(t.id);
+    const teamCourseToday = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
+    return teamCourseToday===curCourse && t.name.toLowerCase().includes(q);
+  }).sort((a,b)=>{
+    // Sort by Saturday tee time for reference
+    const ta=a.acc_tee_time||a.gcc_tee_time;
+    const tb=b.acc_tee_time||b.gcc_tee_time;
+    if(ta&&tb) return ta.localeCompare(tb);
+    if(ta) return -1; if(tb) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  document.getElementById('teamList').innerHTML = filtered.slice(0,80).map(t=>{
+    const satC=getSatCourse(t.id);
+    const scoreCourse = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
+    const ex = getScore(t.id, scoreCourse);
     const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
     const badge = holes===18?'✅ ':(holes>0?'⏳ ':'');
-    const ttStr = tt ? tt.substring(0,5) : '–';
-    return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${curCourse.toUpperCase()} · ${ttStr}</div></div>`;
+    const satTT = t.acc_tee_time||t.gcc_tee_time;
+    const ttStr = satTT ? satTT.substring(0,5) : '–';
+    return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${curCourse.toUpperCase()} · Sat tee: ${ttStr}</div></div>`;
   }).join('');
 }
 
+function getScoreCourse(){
+  // Which course does the current team play on the selected day?
+  if(!curTeam) return curCourse;
+  const day=document.getElementById('sc-day').value;
+  const satC=getSatCourse(curTeam.id);
+  return day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
+}
 function selectTeam(tid){
   curTeam = TEAMS.find(t=>t.id===tid);
   if(!curTeam) return;
-  // Seed buffer from existing saved score
+  const scoreCourse=getScoreCourse();
   Object.keys(_buf).forEach(k=>delete _buf[k]);
-  const ex=getScore(curTeam.id,curCourse);
+  const ex=getScore(curTeam.id,scoreCourse);
   if(ex&&ex.team) ex.team.forEach((v,h)=>{if(v!==null)_buf[h]=v;});
   document.getElementById('cardPanel').style.display='block';
   renderCard();
@@ -550,16 +620,19 @@ function flushToBuf(){
 
 function renderCard(){
   if(!curTeam) return;
-  const par = curCourse==='acc'?ACC_PAR:GCC_PAR;
-  const par3 = curCourse==='acc'?ACC_PAR3:GCC_PAR3;
-  const ex = getScore(curTeam.id, curCourse);
+  const scoreCourse=getScoreCourse();
+  const par = scoreCourse==='acc'?ACC_PAR:GCC_PAR;
+  const par3 = scoreCourse==='acc'?ACC_PAR3:GCC_PAR3;
+  const ex = getScore(curTeam.id, scoreCourse);
   // Merge saved score with session buffer (_buf takes priority)
   const base = ex ? [...ex.team] : Array(18).fill(null);
   const scores = base.map((v,h)=> _buf[h]!==undefined ? _buf[h] : v);
   const ttKey = curCourse==='acc'?'acc_tee_time':'gcc_tee_time';
   const ttStr = curTeam[ttKey] ? curTeam[ttKey].substring(0,5) : 'TBD';
-  const fmtLabel = curCourse==='acc'?'Low Ball – lowest score per hole counts':'Scamble – best tee shot, then individual play, lowest counts';
-  document.getElementById('cardTitle').textContent = curTeam.name+' · '+curCourse.toUpperCase()+' · Tee: '+ttStr;
+  const fmtLabel = scoreCourse==='acc'?'Low Ball – lowest score per hole counts':'Scamble – best tee shot, then individual play, lowest counts';
+  const day=document.getElementById('sc-day').value;
+  const dayLabel=day==='sat'?'Sat Jul 11':'Sun Jul 12';
+  document.getElementById('cardTitle').textContent = curTeam.name+' · '+scoreCourse.toUpperCase()+' · '+dayLabel;
   document.getElementById('fmtNote').textContent = '📋 '+fmtLabel;
   const start = curHalf==='front'?0:9;
   const holes = Array.from({length:9},(_,i)=>start+i);
@@ -581,7 +654,7 @@ function renderCard(){
   document.getElementById('holeGrid').innerHTML=html;
   updateSummary();
   // Photo
-  const exPhoto=getScorePhoto(curTeam.id,curCourse);
+  const exPhoto=getScorePhoto(curTeam.id,scoreCourse);
   if(ex&&exPhoto){
     photoData=exPhoto;
     ex.photo=exPhoto;
@@ -648,7 +721,8 @@ function saveScore(){
   const team=getAllHoles();
   const full=team.filter(x=>x!==null).length===18;
   if(!full&&!confirm('Not all 18 holes entered. Save partial score?')) return;
-  saveScoreData(curTeam.id, curCourse, {team, photo:photoData, savedAt:new Date().toISOString()});
+  const scoreCourse=getScoreCourse();
+  saveScoreData(curTeam.id, scoreCourse, {team, photo:photoData, savedAt:new Date().toISOString()});
   // Reseed buffer from saved data so switching halves stays consistent
   Object.keys(_buf).forEach(k=>delete _buf[k]);
   team.forEach((v,h)=>{if(v!==null)_buf[h]=v;});
@@ -659,9 +733,10 @@ function saveScore(){
 function clearCard(){
   if(!curTeam) return;
   if(!confirm('Clear scores for this team on this course?')) return;
-  delete _scores[curTeam.id+'_'+curCourse];
-  db.ref('scores/'+curTeam.id+'/'+curCourse).remove();
-  try{localStorage.removeItem('tci2026_photo_'+curTeam.id+'_'+curCourse);}catch(e){}
+  const sc=getScoreCourse();
+  delete _scores[curTeam.id+'_'+sc];
+  db.ref('scores/'+curTeam.id+'/'+sc).remove();
+  try{localStorage.removeItem('tci2026_photo_'+curTeam.id+'_'+sc);}catch(e){}
   photoData=null;
   Object.keys(_buf).forEach(k=>delete _buf[k]);
   renderCard();
@@ -916,6 +991,7 @@ function saveFlights(){
   const flights=getFlights().map((f,i)=>({
     ...f,
     name:document.getElementById('fn'+i).value||f.name,
+    course:document.getElementById('fc'+i).value||f.course,
     min:parseInt(document.getElementById('fmin'+i).value)||0,
     max:parseInt(document.getElementById('fmax'+i).value)||999
   }));

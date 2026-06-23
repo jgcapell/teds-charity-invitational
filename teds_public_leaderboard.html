@@ -131,22 +131,67 @@ function getTeamFlight(tid){
   for(let i=0;i<flights.length;i++){if(sat>=flights[i].min&&sat<=flights[i].max)return i;}
   return flights.length-1;
 }
+// ── Team helpers ──────────────────────────────────────────────
+function getSatCourse(tid){
+  // teams 001-076 have acc_tee_time -> played ACC Saturday
+  // teams 077-152 have gcc_tee_time -> played GCC Saturday
+  const t=TEAMS.find(x=>x.id===tid);
+  return t&&t.acc_tee_time?'acc':'gcc';
+}
+function getSunCourse(tid){ return getSatCourse(tid)==='acc'?'gcc':'acc'; }
+function getSatPar(tid){ return getSatCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
+function getSunPar(tid){ return getSunCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
+
 function getTeamStats(tid){
-  const acc=getScore(tid,'acc'),gcc=getScore(tid,'gcc');
-  const accH=acc?acc.team.filter(x=>x!==null):[];
-  const gccH=gcc?gcc.team.filter(x=>x!==null):[];
-  const accFull=accH.length===18,gccFull=gccH.length===18;
-  const accTotal=accFull?acc.team.reduce((a,b)=>a+b,0):null;
-  const gccTotal=gccFull?gcc.team.reduce((a,b)=>a+b,0):null;
-  const total=(accFull&&gccFull)?accTotal+gccTotal:null;
-  return{accTotal,gccTotal,total,
-    totalVsPar:total!==null?total-(ACC_TOTAL_PAR+GCC_TOTAL_PAR):null,
-    accVsPar:accFull?accTotal-ACC_TOTAL_PAR:null,
-    gccVsPar:gccFull?gccTotal-GCC_TOTAL_PAR:null,
-    accFull,gccFull};
+  const satC=getSatCourse(tid), sunC=getSunCourse(tid);
+  const satS=getScore(tid,satC), sunS=getScore(tid,sunC);
+  // Use running total (partial ok) for display; full-round flag for official scoring
+  const satHoles=satS?satS.team.filter(x=>x!==null):[];
+  const sunHoles=sunS?sunS.team.filter(x=>x!==null):[];
+  const satFull=satHoles.length===18, sunFull=sunHoles.length===18;
+  const satTotal=satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const sunTotal=sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const satPar=getSatPar(tid), sunPar=getSunPar(tid);
+  const total=(satFull&&sunFull)?satTotal+sunTotal:null;
+  // Legacy aliases for leaderboard columns (R1=acc, R2=gcc)
+  const accTotal=satC==='acc'?satTotal:(sunC==='acc'?sunTotal:null);
+  const gccTotal=satC==='gcc'?satTotal:(sunC==='gcc'?sunTotal:null);
+  return{
+    satTotal, sunTotal, total,
+    satFull, sunFull,
+    satPar, sunPar,
+    satVsPar:satTotal!==null?satTotal-satPar:null,
+    sunVsPar:sunTotal!==null?sunTotal-sunPar:null,
+    totalVsPar:total!==null?total-(satPar+sunPar):null,
+    accTotal, gccTotal,  // kept for leaderboard R1/R2 display
+    satHolesPlayed:satHoles.length,
+    sunHolesPlayed:sunHoles.length
+  };
+}
+function getFlights(){return load('flights',[
+  {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
+  {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
+  {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
+  {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
+  {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
+  {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
+]);}
+function getTeamFlight(tid){
+  const flights=getFlights();
+  const satC=getSatCourse(tid);
+  const s=getScore(tid,satC);
+  const satScore=s&&s.team.filter(x=>x!==null).length===18
+    ?s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  if(satScore===null)return -1;
+  for(let i=0;i<flights.length;i++){
+    if(flights[i].course===satC&&satScore>=flights[i].min&&satScore<=flights[i].max)return i;
+  }
+  return -1;
 }
 function fmtVsPar(v){if(v===null)return'–';if(v===0)return'<span class="even">E</span>';if(v<0)return'<span class="under">'+v+'</span>';return'<span class="over">+'+v+'</span>';}
 function fmtScore(v){return v!==null?v:'–';}
+function timeToMin(t){if(!t)return 0;const p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 function timeToMin(t){if(!t)return 0;const p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
 function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 
@@ -166,8 +211,7 @@ function renderLB(){
   const flights=getFlights();
   const flightsConfigured=flights.some(f=>f.min!==0||f.max!==999);
   const data=TEAMS.map(t=>({...t,s:getTeamStats(t.id),fi:getTeamFlight(t.id)}));
-  const scored=data.filter(t=>t.s.accTotal!==null||t.s.gccTotal!==null);
-  const anyScores=scored.length>0;
+  const anyScores=data.some(t=>t.s.satTotal!==null);
   let html='';
 
   if(!anyScores){
@@ -176,67 +220,62 @@ function renderLB(){
     return;
   }
 
+  function sortKey(t){
+    // Sort by: complete 2-day total first, then complete 1-day, then partial, then no score
+    if(t.s.total!==null) return t.s.total;
+    if(t.s.satFull) return t.s.satTotal+10000;
+    if(t.s.satTotal!==null) return t.s.satTotal+20000;
+    return 99999;
+  }
+
+  function teamRow(t,pos){
+    const hasScore=t.s.satTotal!==null;
+    const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar)
+      :(t.s.satTotal!==null?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
+      :'<span class="no-sc">–</span>');
+    const partial=t.s.satTotal!==null&&!t.s.satFull?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':'';    return `<tr><td class="c"><span class="pos ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
+      <td><span class="team-nm">${t.name}</span></td>
+      <td class="c">${vp}</td>
+      <td class="c">${t.s.satTotal!==null?t.s.satTotal+''+ partial:'–'}</td>
+      <td class="c">${t.s.sunTotal!==null?t.s.sunTotal:'–'}</td>
+      <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
+  }
+
   if(!flightsConfigured){
-    // No flights set yet — show one unified leaderboard sorted by best available score
-    const allSorted=data.slice().sort((a,b)=>{
-      const aS=a.s.total!==null?a.s.total:(a.s.accTotal!==null?a.s.accTotal+999:9999);
-      const bS=b.s.total!==null?b.s.total:(b.s.accTotal!==null?b.s.accTotal+999:9999);
-      return aS-bS;
-    });
-    html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scored.length+' of '+data.length+' scored</span></div>';
-    html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
+    const sorted=data.slice().sort((a,b)=>sortKey(a)-sortKey(b));
+    const scoredCount=sorted.filter(t=>t.s.satTotal!==null).length;
+    html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
+    html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
     let pos=1;
-    allSorted.forEach(t=>{
-      const hasScore=t.s.accTotal!==null||t.s.gccTotal!==null;
-      const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-      const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar):(t.s.accTotal!==null?fmtVsPar(t.s.accVsPar):(t.s.gccTotal!==null?fmtVsPar(t.s.gccVsPar):'<span class="no-sc">–</span>'));
-      const r1=t.s.accTotal!==null?t.s.accTotal:(t.s.gccTotal!==null?t.s.gccTotal:null);
-      const r2=t.s.accTotal!==null&&t.s.gccTotal!==null?t.s.gccTotal:null;
-      html+=`<tr><td class="c"><span class="pos ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
-        <td><span class="team-nm">${t.name}</span></td>
-        <td class="c">${vp}</td>
-        <td class="c">${fmtScore(r1)}</td>
-        <td class="c">${fmtScore(r2)}</td>
-        <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
-      if(hasScore) pos++;
+    sorted.forEach(t=>{
+      html+=teamRow(t,pos);
+      if(t.s.satTotal!==null) pos++;
     });
     html+='</tbody></table>';
   } else {
-    // Flights configured — group by flight
+    // GCC-Saturday flights first (Champ, F1, F2), then ACC-Saturday (F3, F4, F5)
     flights.forEach((f,fi)=>{
-      const inF=data.filter(t=>t.fi===fi);
-      const scoredF=inF.filter(t=>t.s.total!==null).sort((a,b)=>a.s.total-b.s.total);
-      const uns=inF.filter(t=>t.s.total===null).sort((a,b)=>a.name.localeCompare(b.name));
-      const all=[...scoredF,...uns];
-      if(!all.length) return;
+      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>sortKey(a)-sortKey(b));
+      if(!inF.length) return;
+      const scoredF=inF.filter(t=>t.s.satFull||t.s.total!==null).length;
       html+=`<div class="flight-block">
-        <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF.length} of ${all.length} scored</span></div>
-        <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>`;
-      all.forEach((t,i)=>{
-        const pc=i===0?'p1':i===1?'p2':i===2?'p3':'pn';
-        const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar):'<span class="no-sc">–</span>';
-        html+=`<tr><td class="c"><span class="pos ${t.s.total!==null?pc:'pn'}">${t.s.total!==null?i+1:'–'}</span></td>
-          <td><span class="team-nm">${t.name}</span></td>
-          <td class="c">${vp}</td>
-          <td class="c">${fmtScore(t.s.accTotal)}</td>
-          <td class="c">${fmtScore(t.s.gccTotal)}</td>
-          <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
-      });
+        <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>
+        <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>`;
+      let pos=1;
+      inF.forEach(t=>{html+=teamRow(t,pos);if(t.s.satTotal!==null)pos++;});
       html+='</tbody></table></div>';
     });
-    // Unassigned
-    const unassigned=data.filter(t=>t.fi===-1&&(t.s.accTotal!==null||t.s.gccTotal!==null));
+    // Teams not yet assigned
+    const unassigned=data.filter(t=>t.fi===-1&&t.s.satTotal!==null).sort((a,b)=>sortKey(a)-sortKey(b));
     if(unassigned.length){
       html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
-      html+='<table><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
-      unassigned.forEach(t=>{
-        const vp=t.s.accTotal!==null?fmtVsPar(t.s.accVsPar):'<span class="no-sc">–</span>';
-        html+=`<tr><td class="c"><span class="pos pn">–</span></td><td><span class="team-nm">${t.name}</span></td><td class="c">${vp}</td><td class="c">${fmtScore(t.s.accTotal)}</td><td class="c">${fmtScore(t.s.gccTotal)}</td><td class="c">–</td></tr>`;
-      });
+      html+='<table><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
+      let pos=1;
+      unassigned.forEach(t=>{html+=teamRow(t,pos++);});
       html+='</tbody></table>';
     }
   }
-
   document.getElementById('v-lb').innerHTML=html;
 }
 
