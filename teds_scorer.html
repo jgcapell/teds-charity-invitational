@@ -285,6 +285,12 @@ select:focus,input:focus{border-color:var(--green);}
       <div id="pin-msg" style="font-size:13px;margin-top:6px"></div>
     </div>
     <div class="card">
+      <div class="card-title">🧪 Test Data</div>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Populates realistic random scores for all 152 teams. Use to smoke test leaderboard, flights, and Sunday tee times before the tournament.</p>
+      <button class="btn btn-gold" onclick="populateTestScores('sat')" style="margin-bottom:8px">🎲 Populate Saturday Test Scores</button>
+      <button class="btn btn-gold" onclick="populateTestScores('sun')">🎲 Populate Sunday Test Scores</button>
+    </div>
+    <div class="card">
       <div class="card-title">🗑 Reset</div>
       <button class="btn btn-red" onclick="clearAll()">Clear ALL Scores (Full Reset)</button>
     </div>
@@ -1026,6 +1032,51 @@ function clearAll(){
   });
   showToast('All scores cleared');
   renderAdmin();
+}
+
+// ═══════════════════════════════════════════════
+// TEST SCORE GENERATOR
+// ═══════════════════════════════════════════════
+function randomHoleScore(par){
+  // Realistic distribution: mostly pars, some birdies/bogeys, occasional doubles
+  const roll = Math.random();
+  if(roll < 0.04) return par - 2;           // eagle (4%)
+  if(roll < 0.22) return par - 1;           // birdie (18%)
+  if(roll < 0.55) return par;               // par (33%)
+  if(roll < 0.78) return par + 1;           // bogey (23%)
+  if(roll < 0.92) return par + 2;           // double (14%)
+  return par + 3;                            // triple+ (8%)
+}
+
+function populateTestScores(day){
+  const label = day==='sat' ? 'Saturday' : 'Sunday';
+  if(!confirm('Populate '+label+' test scores for all 152 teams? This will overwrite any existing '+label+' scores.')) return;
+
+  showToast('⏳ Generating '+label+' scores…');
+  let saved = 0;
+  const total = TEAMS.length;
+
+  TEAMS.forEach(t=>{
+    // Determine which course this team plays on the requested day
+    const satC = t.acc_tee_time ? 'acc' : 'gcc';
+    const sunC = satC==='acc' ? 'gcc' : 'acc';
+    const course = day==='sat' ? satC : sunC;
+    const par = course==='acc' ? ACC_PAR : GCC_PAR;
+
+    // Generate 18 hole scores
+    const team = par.map(p => randomHoleScore(p));
+
+    const data = {team, savedAt: new Date().toISOString(), photo: null};
+    saveScoreData(t.id, course, data);
+    saved++;
+  });
+
+  // Refresh UI after a short delay to let Firebase writes propagate
+  setTimeout(()=>{
+    filterTeams();
+    renderLB();
+    showToast('✅ '+saved+' '+label+' scores generated!');
+  }, 1500);
 }
 
 // ═══════════════════════════════════════════════
