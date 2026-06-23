@@ -592,6 +592,24 @@ function onCourseChange(){
   filterTeams();
 }
 
+function updateTeamBadge(tid, course){
+  // Update just this one team item's badge without rebuilding the list
+  const ex = getScore(tid, course);
+  const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
+  const isDNF = ex && ex.dnf === true;
+  const badge = isDNF?'⛔ ':(holes===18?'✅ ':(holes>0?'⏳ ':''));
+  // Find the team item in the list and update its content prefix
+  const items = document.querySelectorAll('.team-item');
+  items.forEach(item=>{
+    if(item.getAttribute('onclick')===`selectTeam('${tid}')`){
+      const tt = item.querySelector('.tt');
+      const ttText = tt ? tt.outerHTML : '';
+      const teamObj = TEAMS.find(t=>t.id===tid);
+      item.innerHTML = badge + (teamObj?teamObj.name:'') + ttText;
+    }
+  });
+}
+
 function filterTeams(){
   // Always read fresh from DOM - no stale state
   const course = document.getElementById('sc-course').value;
@@ -785,7 +803,7 @@ function markDNF(){
   saveScoreData(curTeam.id, scoreCourse, data);
   Object.keys(_buf).forEach(k=>delete _buf[k]);
   renderCard();
-  filterTeams();
+  updateTeamBadge(curTeam.id, getScoreCourse());
   showToast('⛔ DNF recorded for '+curTeam.name);
 }
 
@@ -800,7 +818,8 @@ function saveScore(){
   Object.keys(_buf).forEach(k=>delete _buf[k]);
   team.forEach((v,h)=>{if(v!==null)_buf[h]=v;});
   showToast('✅ Saved: '+curTeam.name);
-  filterTeams();
+  // Update just this team's badge without rebuilding whole list
+  updateTeamBadge(curTeam.id, scoreCourse);
 }
 
 function clearCard(){
@@ -813,7 +832,7 @@ function clearCard(){
   photoData=null;
   Object.keys(_buf).forEach(k=>delete _buf[k]);
   renderCard();
-  filterTeams();
+  if(curTeam) updateTeamBadge(curTeam.id, getScoreCourse());
   showToast('Cleared');
 }
 
@@ -1354,7 +1373,9 @@ function initApp(){
       });
     });
     renderLB();
-    filterTeams(); // refresh status badges in team list
+    // Note: filterTeams() intentionally NOT called here —
+    // rebuilding the team list DOM on every Firebase update
+    // prevents click events from registering on team items.
   });
 }
 </script>
