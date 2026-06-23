@@ -164,33 +164,79 @@ function switchTab(v,el){
 
 function renderLB(){
   const flights=getFlights();
+  const flightsConfigured=flights.some(f=>f.min!==0||f.max!==999);
   const data=TEAMS.map(t=>({...t,s:getTeamStats(t.id),fi:getTeamFlight(t.id)}));
-  let html='',any=false;
+  const scored=data.filter(t=>t.s.accTotal!==null||t.s.gccTotal!==null);
+  const anyScores=scored.length>0;
+  let html='';
 
-  flights.forEach((f,fi)=>{
-    const inf=data.filter(t=>t.fi===fi);
-    const scored=inf.filter(t=>t.s.total!==null).sort((a,b)=>a.s.total-b.s.total);
-    const uns=inf.filter(t=>t.s.total===null).sort((a,b)=>a.name.localeCompare(b.name));
-    const all=[...scored,...uns];
-    if(!all.length) return;
-    any=any||(scored.length>0);
-    html+=`<div class="flight-block">
-      <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scored.length} of ${all.length} scored</span></div>
-      <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>`;
-    all.forEach((t,i)=>{
-      const pc=i===0?'p1':i===1?'p2':i===2?'p3':'pn';
-      const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar):'<span class="no-sc">–</span>';
-      html+=`<tr><td class="c"><span class="pos ${t.s.total!==null?pc:'pn'}">${t.s.total!==null?i+1:'–'}</span></td>
+  if(!anyScores){
+    html='<div class="empty"><div class="ico">⛳</div><h2>Scoring In Progress</h2><p>Live results will appear here as scores are submitted.</p></div>';
+    document.getElementById('v-lb').innerHTML=html;
+    return;
+  }
+
+  if(!flightsConfigured){
+    // No flights set yet — show one unified leaderboard sorted by best available score
+    const allSorted=data.slice().sort((a,b)=>{
+      const aS=a.s.total!==null?a.s.total:(a.s.accTotal!==null?a.s.accTotal+999:9999);
+      const bS=b.s.total!==null?b.s.total:(b.s.accTotal!==null?b.s.accTotal+999:9999);
+      return aS-bS;
+    });
+    html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scored.length+' of '+data.length+' scored</span></div>';
+    html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
+    let pos=1;
+    allSorted.forEach(t=>{
+      const hasScore=t.s.accTotal!==null||t.s.gccTotal!==null;
+      const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+      const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar):(t.s.accTotal!==null?fmtVsPar(t.s.accVsPar):(t.s.gccTotal!==null?fmtVsPar(t.s.gccVsPar):'<span class="no-sc">–</span>'));
+      const r1=t.s.accTotal!==null?t.s.accTotal:(t.s.gccTotal!==null?t.s.gccTotal:null);
+      const r2=t.s.accTotal!==null&&t.s.gccTotal!==null?t.s.gccTotal:null;
+      html+=`<tr><td class="c"><span class="pos ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
         <td><span class="team-nm">${t.name}</span></td>
         <td class="c">${vp}</td>
-        <td class="c">${fmtScore(t.s.accTotal)}</td>
-        <td class="c">${fmtScore(t.s.gccTotal)}</td>
+        <td class="c">${fmtScore(r1)}</td>
+        <td class="c">${fmtScore(r2)}</td>
         <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
+      if(hasScore) pos++;
     });
-    html+='</tbody></table></div>';
-  });
+    html+='</tbody></table>';
+  } else {
+    // Flights configured — group by flight
+    flights.forEach((f,fi)=>{
+      const inF=data.filter(t=>t.fi===fi);
+      const scoredF=inF.filter(t=>t.s.total!==null).sort((a,b)=>a.s.total-b.s.total);
+      const uns=inF.filter(t=>t.s.total===null).sort((a,b)=>a.name.localeCompare(b.name));
+      const all=[...scoredF,...uns];
+      if(!all.length) return;
+      html+=`<div class="flight-block">
+        <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF.length} of ${all.length} scored</span></div>
+        <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>`;
+      all.forEach((t,i)=>{
+        const pc=i===0?'p1':i===1?'p2':i===2?'p3':'pn';
+        const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar):'<span class="no-sc">–</span>';
+        html+=`<tr><td class="c"><span class="pos ${t.s.total!==null?pc:'pn'}">${t.s.total!==null?i+1:'–'}</span></td>
+          <td><span class="team-nm">${t.name}</span></td>
+          <td class="c">${vp}</td>
+          <td class="c">${fmtScore(t.s.accTotal)}</td>
+          <td class="c">${fmtScore(t.s.gccTotal)}</td>
+          <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
+      });
+      html+='</tbody></table></div>';
+    });
+    // Unassigned
+    const unassigned=data.filter(t=>t.fi===-1&&(t.s.accTotal!==null||t.s.gccTotal!==null));
+    if(unassigned.length){
+      html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
+      html+='<table><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1</th><th class="c">R2</th><th class="c">Total</th></tr></thead><tbody>';
+      unassigned.forEach(t=>{
+        const vp=t.s.accTotal!==null?fmtVsPar(t.s.accVsPar):'<span class="no-sc">–</span>';
+        html+=`<tr><td class="c"><span class="pos pn">–</span></td><td><span class="team-nm">${t.name}</span></td><td class="c">${vp}</td><td class="c">${fmtScore(t.s.accTotal)}</td><td class="c">${fmtScore(t.s.gccTotal)}</td><td class="c">–</td></tr>`;
+      });
+      html+='</tbody></table>';
+    }
+  }
 
-  if(!any) html='<div class="empty"><div class="ico">⛳</div><h2>Scoring In Progress</h2><p>Live results will appear here as scores are submitted.</p></div>';
   document.getElementById('v-lb').innerHTML=html;
 }
 
