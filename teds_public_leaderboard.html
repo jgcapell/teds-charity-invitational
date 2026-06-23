@@ -137,25 +137,28 @@ function getSunPar(tid){ return getSunCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTA
 function getTeamStats(tid){
   const satC=getSatCourse(tid), sunC=getSunCourse(tid);
   const satS=getScore(tid,satC), sunS=getScore(tid,sunC);
-  // Use running total (partial ok) for display; full-round flag for official scoring
-  const satHoles=satS?satS.team.filter(x=>x!==null):[];
-  const sunHoles=sunS?sunS.team.filter(x=>x!==null):[];
-  const satFull=satHoles.length===18, sunFull=sunHoles.length===18;
-  const satTotal=satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
-  const sunTotal=sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const satDNF=satS&&satS.dnf===true;
+  const sunDNF=sunS&&sunS.dnf===true;
+  const satHoles=satS&&!satDNF?satS.team.filter(x=>x!==null):[];
+  const sunHoles=sunS&&!sunDNF?sunS.team.filter(x=>x!==null):[];
+  const satFull=!satDNF&&satHoles.length===18;
+  const sunFull=!sunDNF&&sunHoles.length===18;
+  const satTotal=satDNF?'DNF':(satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null);
+  const sunTotal=sunDNF?'DNF':(sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null);
   const satPar=getSatPar(tid), sunPar=getSunPar(tid);
-  const total=(satFull&&sunFull)?satTotal+sunTotal:null;
-  // Legacy aliases for leaderboard columns (R1=acc, R2=gcc)
+  const anyDNF=satDNF||sunDNF;
+  const total=anyDNF?'DNF':(satFull&&sunFull?satTotal+sunTotal:null);
   const accTotal=satC==='acc'?satTotal:(sunC==='acc'?sunTotal:null);
   const gccTotal=satC==='gcc'?satTotal:(sunC==='gcc'?sunTotal:null);
   return{
     satTotal, sunTotal, total,
     satFull, sunFull,
+    satDNF, sunDNF, anyDNF,
     satPar, sunPar,
-    satVsPar:satTotal!==null?satTotal-satPar:null,
-    sunVsPar:sunTotal!==null?sunTotal-sunPar:null,
-    totalVsPar:total!==null?total-(satPar+sunPar):null,
-    accTotal, gccTotal,  // kept for leaderboard R1/R2 display
+    satVsPar:(!satDNF&&satTotal!==null)?satTotal-satPar:null,
+    sunVsPar:(!sunDNF&&sunTotal!==null)?sunTotal-sunPar:null,
+    totalVsPar:(!anyDNF&&total!==null)?total-(satPar+sunPar):null,
+    accTotal, gccTotal,
     satHolesPlayed:satHoles.length,
     sunHolesPlayed:sunHoles.length
   };
@@ -211,25 +214,36 @@ function renderLB(){
   }
 
   function sortKey(t){
-    // Sort by: complete 2-day total first, then complete 1-day, then partial, then no score
-    if(t.s.total!==null) return t.s.total;
+    if(t.s.anyDNF) return 88888; // DNF sorts below scores, above unscored
+    if(t.s.total!==null&&t.s.total!=='DNF') return t.s.total;
     if(t.s.satFull) return t.s.satTotal+10000;
-    if(t.s.satTotal!==null) return t.s.satTotal+20000;
+    if(t.s.satTotal!==null&&t.s.satTotal!=='DNF') return t.s.satTotal+20000;
     return 99999;
   }
 
   function teamRow(t,pos){
-    const hasScore=t.s.satTotal!==null;
+    const isDNF=t.s.anyDNF;
+    const hasScore=t.s.satTotal!==null||isDNF;
     const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-    const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar)
-      :(t.s.satTotal!==null?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
-      :'<span class="no-sc">–</span>');
-    const partial=t.s.satTotal!==null&&!t.s.satFull?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':'';    return `<tr><td class="c"><span class="pos ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
+    const vpStr=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.total!==null&&t.s.total!=='DNF'?fmtVsPar(t.s.totalVsPar)
+      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
+      :'<span class="no-sc">–</span>'));
+    const partial=t.s.satTotal!==null&&t.s.satTotal!=='DNF'&&!t.s.satFull
+      ?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':''
+    const r1=isDNF&&t.s.satDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?t.s.satTotal+''+partial:'–');
+    const r2=isDNF&&t.s.sunDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.sunTotal!==null&&t.s.sunTotal!=='DNF'?t.s.sunTotal:'–');
+    const tot=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.total!==null&&t.s.total!=='DNF'?t.s.total:'–');
+    return `<tr ${isDNF?'style="opacity:0.7"':''}>
+      <td class="c"><span class="pos ${hasScore&&!isDNF?pc:'pn'}">${hasScore&&!isDNF?pos:isDNF?'⛔':'–'}</span></td>
       <td><span class="team-nm">${t.name}</span></td>
-      <td class="c">${vp}</td>
-      <td class="c">${t.s.satTotal!==null?t.s.satTotal+''+ partial:'–'}</td>
-      <td class="c">${t.s.sunTotal!==null?t.s.sunTotal:'–'}</td>
-      <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
+      <td class="c">${vpStr}</td>
+      <td class="c">${r1}</td>
+      <td class="c">${r2}</td>
+      <td class="c" style="font-weight:700">${tot}</td></tr>`;
   }
 
   if(!flightsConfigured){

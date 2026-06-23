@@ -186,6 +186,9 @@ select:focus,input:focus{border-color:var(--green);}
       <div class="card">
         <div class="card-title" id="cardTitle">Scorecard</div>
         <div class="alert-info" id="fmtNote"></div>
+        <div id="dnfBanner" style="display:none;background:#c0392b;color:white;padding:10px 14px;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:10px;display:none">
+          ⛔ This team is marked DNF for this round. Click "Clear & Reset" to remove the DNF flag.
+        </div>
         <div class="half-btns">
           <button class="half-btn on" id="btn-front" onclick="setHalf('front')">Front 9 (1–9)</button>
           <button class="half-btn" id="btn-back" onclick="setHalf('back')">Back 9 (10–18)</button>
@@ -211,6 +214,7 @@ select:focus,input:focus{border-color:var(--green);}
       </div>
       <div class="card">
         <button class="btn btn-green" onclick="saveScore()">💾 Save Score</button>
+        <button class="btn btn-red" onclick="markDNF()" style="margin-top:8px">⛔ Mark as DNF</button>
         <button class="btn btn-gray" onclick="clearCard()" style="margin-top:8px">🗑 Clear & Reset</button>
       </div>
     </div>
@@ -500,25 +504,36 @@ function renderLB(){
   }
 
   function sortKey(t){
-    // Sort by: complete 2-day total first, then complete 1-day, then partial, then no score
-    if(t.s.total!==null) return t.s.total;
+    if(t.s.anyDNF) return 88888; // DNF sorts below scores, above unscored
+    if(t.s.total!==null&&t.s.total!=='DNF') return t.s.total;
     if(t.s.satFull) return t.s.satTotal+10000;
-    if(t.s.satTotal!==null) return t.s.satTotal+20000;
+    if(t.s.satTotal!==null&&t.s.satTotal!=='DNF') return t.s.satTotal+20000;
     return 99999;
   }
 
   function teamRow(t,pos){
-    const hasScore=t.s.satTotal!==null;
+    const isDNF=t.s.anyDNF;
+    const hasScore=t.s.satTotal!==null||isDNF;
     const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-    const vp=t.s.total!==null?fmtVsPar(t.s.totalVsPar)
-      :(t.s.satTotal!==null?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
-      :'<span class="no-sc">–</span>');
-    const partial=t.s.satTotal!==null&&!t.s.satFull?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':'';    return `<tr><td class="c"><span class="pos-badge ${hasScore?pc:'pn'}">${hasScore?pos:'–'}</span></td>
+    const vpStr=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.total!==null&&t.s.total!=='DNF'?fmtVsPar(t.s.totalVsPar)
+      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
+      :'<span class="no-sc">–</span>'));
+    const partial=t.s.satTotal!==null&&t.s.satTotal!=='DNF'&&!t.s.satFull
+      ?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':''
+    const r1=isDNF&&t.s.satDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?t.s.satTotal+''+partial:'–');
+    const r2=isDNF&&t.s.sunDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.sunTotal!==null&&t.s.sunTotal!=='DNF'?t.s.sunTotal:'–');
+    const tot=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
+      :(t.s.total!==null&&t.s.total!=='DNF'?t.s.total:'–');
+    return `<tr ${isDNF?'style="opacity:0.7"':''}>
+      <td class="c"><span class="pos-badge ${hasScore&&!isDNF?pc:'pn'}">${hasScore&&!isDNF?pos:isDNF?'⛔':'–'}</span></td>
       <td><span class="team-nm">${t.name}</span></td>
-      <td class="c">${vp}</td>
-      <td class="c">${t.s.satTotal!==null?t.s.satTotal+''+ partial:'–'}</td>
-      <td class="c">${t.s.sunTotal!==null?t.s.sunTotal:'–'}</td>
-      <td class="c" style="font-weight:700">${fmtScore(t.s.total)}</td></tr>`;
+      <td class="c">${vpStr}</td>
+      <td class="c">${r1}</td>
+      <td class="c">${r2}</td>
+      <td class="c" style="font-weight:700">${tot}</td></tr>`;
   }
 
   if(!flightsConfigured){
@@ -602,7 +617,8 @@ function filterTeams(){
     const scoreCourse = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
     const ex = getScore(t.id, scoreCourse);
     const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
-    const badge = holes===18?'✅ ':(holes>0?'⏳ ':'');
+    const isDNF = ex && ex.dnf === true;
+    const badge = isDNF?'⛔ ':(holes===18?'✅ ':(holes>0?'⏳ ':''));
     const satTT = t.acc_tee_time||t.gcc_tee_time;
     const ttStr = satTT ? satTT.substring(0,5) : '–';
     return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${scoreCourse.toUpperCase()} · Sat tee: ${ttStr}</div></div>`;
@@ -682,6 +698,19 @@ function renderCard(){
   });
   document.getElementById('holeGrid').innerHTML=html;
   updateSummary();
+  // Show/hide DNF banner and lock inputs
+  const isDNF = ex && ex.dnf === true;
+  const dnfBanner = document.getElementById('dnfBanner');
+  if(dnfBanner) dnfBanner.style.display = isDNF ? 'block' : 'none';
+  // Lock all hole inputs if DNF
+  document.querySelectorAll('.h-inp').forEach(inp=>{
+    inp.disabled = isDNF;
+    inp.style.opacity = isDNF ? '0.4' : '1';
+    inp.style.cursor = isDNF ? 'not-allowed' : '';
+  });
+  document.querySelector('[onclick="saveScore()"]').style.display = isDNF ? 'none' : '';
+  document.querySelector('[onclick="markDNF()"]').style.display = isDNF ? 'none' : '';
+
   // Photo
   const exPhoto=getScorePhoto(curTeam.id,scoreCourse);
   if(ex&&exPhoto){
@@ -745,13 +774,26 @@ function updateSummary(){
   else{vpEl.textContent='–';vpEl.className='sum-val';}
 }
 
+function markDNF(){
+  if(!curTeam){showToast('Select a team first');return;}
+  if(!confirm('Mark '+curTeam.name+' as DNF for this round? This will clear any entered scores.')) return;
+  const scoreCourse=getScoreCourse();
+  const data={team:Array(18).fill(null), dnf:true, photo:photoData, savedAt:new Date().toISOString()};
+  _scores[curTeam.id+'_'+scoreCourse]=data;
+  saveScoreData(curTeam.id, scoreCourse, data);
+  Object.keys(_buf).forEach(k=>delete _buf[k]);
+  renderCard();
+  filterTeams();
+  showToast('⛔ DNF recorded for '+curTeam.name);
+}
+
 function saveScore(){
   if(!curTeam){showToast('Select a team first');return;}
   const team=getAllHoles();
   const full=team.filter(x=>x!==null).length===18;
   if(!full&&!confirm('Not all 18 holes entered. Save partial score?')) return;
   const scoreCourse=getScoreCourse();
-  saveScoreData(curTeam.id, scoreCourse, {team, photo:photoData, savedAt:new Date().toISOString()});
+  saveScoreData(curTeam.id, scoreCourse, {team, dnf:false, photo:photoData, savedAt:new Date().toISOString()});
   // Reseed buffer from saved data so switching halves stays consistent
   Object.keys(_buf).forEach(k=>delete _buf[k]);
   team.forEach((v,h)=>{if(v!==null)_buf[h]=v;});
@@ -1099,12 +1141,18 @@ function renderSatScores(course){
   // Get their scores
   const withScores = teams.map(t=>{
     const s = getScore(t.id, course);
-    const holes = s ? s.team.filter(x=>x!==null).length : 0;
-    const total = holes===18 ? s.team.reduce((a,b)=>a+b,0) : null;
-    return {...t, total, holes, vsPar: total!==null ? total-par : null};
+    const dnf = s && s.dnf===true;
+    const holes = s&&!dnf ? s.team.filter(x=>x!==null).length : 0;
+    const total = dnf?'DNF':(holes===18 ? s.team.reduce((a,b)=>a+b,0) : null);
+    return {...t, total, holes, dnf, vsPar: (!dnf&&total!==null) ? total-par : null};
   });
 
-  const scored = withScores.filter(t=>t.total!==null).sort((a,b)=>a.total-b.total);
+  const scored = withScores.filter(t=>t.total!==null).sort((a,b)=>{
+    if(a.dnf&&!b.dnf) return 1;
+    if(!a.dnf&&b.dnf) return -1;
+    if(a.dnf&&b.dnf) return 0;
+    return a.total-b.total;
+  });
   const unscored = withScores.filter(t=>t.total===null);
 
   let html = `<div style="font-weight:700;font-size:13px;color:var(--green);margin-bottom:8px">
@@ -1125,12 +1173,13 @@ function renderSatScores(course){
     const flights = getFlights();
     const fName = fi>=0 ? flights[fi].name : '—';
     const fColor = fi>=0 ? flights[fi].color : '#aaa';
-    const vpStr = t.vsPar===0?'E':t.vsPar>0?'+'+t.vsPar:t.vsPar;
-    const vpColor = t.vsPar<0?'var(--red)':t.vsPar===0?'var(--green)':'#333';
-    html += `<tr>
+    const isDNF = t.dnf===true;
+    const vpStr = isDNF?'DNF':(t.vsPar===0?'E':t.vsPar>0?'+'+t.vsPar:t.vsPar);
+    const vpColor = isDNF?'#c0392b':(t.vsPar<0?'var(--red)':t.vsPar===0?'var(--green)':'#333');
+    html += `<tr ${isDNF?'style="opacity:0.6"':''}>
       <td style="font-size:12px;color:var(--gray)">${i+1}</td>
       <td style="font-weight:600;font-size:13px">${t.name}</td>
-      <td style="text-align:center;font-weight:700">${t.total}</td>
+      <td style="text-align:center;font-weight:700;color:${isDNF?'#c0392b':'inherit'}">${isDNF?'DNF':t.total}</td>
       <td style="text-align:center;color:${vpColor};font-weight:700">${vpStr}</td>
       <td style="text-align:center"><span style="background:${fColor};color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${fName}</span></td>
     </tr>`;
