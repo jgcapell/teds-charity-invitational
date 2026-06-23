@@ -213,8 +213,8 @@ select:focus,input:focus{border-color:var(--green);}
         <button class="btn btn-gray" id="removePhotoBtn" style="display:none;margin-top:8px" onclick="removePhoto()">✕ Remove Photo</button>
       </div>
       <div class="card">
-        <button class="btn btn-green" onclick="saveScore()">💾 Save Score</button>
-        <button class="btn btn-red" onclick="markDNF()" style="margin-top:8px">⛔ Mark as DNF</button>
+        <button class="btn btn-green" id="btnSaveScore" onclick="saveScore()">💾 Save Score</button>
+        <button class="btn btn-red" id="btnMarkDNF" onclick="markDNF()" style="margin-top:8px">⛔ Mark as DNF</button>
         <button class="btn btn-gray" onclick="clearCard()" style="margin-top:8px">🗑 Clear & Reset</button>
       </div>
     </div>
@@ -708,8 +708,10 @@ function renderCard(){
     inp.style.opacity = isDNF ? '0.4' : '1';
     inp.style.cursor = isDNF ? 'not-allowed' : '';
   });
-  document.querySelector('[onclick="saveScore()"]').style.display = isDNF ? 'none' : '';
-  document.querySelector('[onclick="markDNF()"]').style.display = isDNF ? 'none' : '';
+  const btnSave = document.getElementById('btnSaveScore');
+  const btnDNF = document.getElementById('btnMarkDNF');
+  if(btnSave) btnSave.style.display = isDNF ? 'none' : '';
+  if(btnDNF) btnDNF.style.display = isDNF ? 'none' : '';
 
   // Photo
   const exPhoto=getScorePhoto(curTeam.id,scoreCourse);
