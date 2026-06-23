@@ -892,6 +892,7 @@ function saveFlights(){
     max:parseInt(document.getElementById('fmax'+i).value)||999
   }));
   store('flights',flights);
+  db.ref('flights').set(flights);
   showToast('Flights saved!');
 }
 
