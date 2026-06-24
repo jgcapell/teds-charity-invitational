@@ -273,6 +273,15 @@ select:focus,input:focus{border-color:var(--green);}
       <button class="btn btn-green" onclick="saveFlights()" style="margin-top:12px">Save Flight Settings</button>
     </div>
     <div class="card">
+      <div class="card-title">📋 Publish Tee Times</div>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Saturday tee times are always published. Click below to publish generated Sunday tee times to the public leaderboard when ready.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="publishSundayTT('acc')">📤 Publish Sunday ACC Tee Times</button>
+        <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="publishSundayTT('gcc')">📤 Publish Sunday GCC Tee Times</button>
+      </div>
+      <div id="tt-publish-status" style="font-size:13px;color:var(--green);margin-top:8px"></div>
+    </div>
+    <div class="card">
       <div class="card-title">🏌️ Saturday Scores by Course</div>
       <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Use this to set flight thresholds. Shows all completed Saturday scores sorted lowest to highest per course.</p>
       <div style="display:flex;gap:10px;margin-bottom:12px">
@@ -344,10 +353,14 @@ const _scores={};
 function getScore(tid,course){return _scores[tid+'_'+course]||null;}
 function saveScoreData(tid,course,data){
   _scores[tid+'_'+course]=data;
-  const fbData={team:data.team,savedAt:data.savedAt};
+  const fbData={team:data.team,savedAt:data.savedAt,dnf:data.dnf||false};
   db.ref('scores/'+tid+'/'+course).set(fbData);
-  if(data.photo)store('photo_'+tid+'_'+course,data.photo);
-  else{try{localStorage.removeItem('tci2026_photo_'+tid+'_'+course);}catch(e){}}
+  if(data.photo){
+    try{ store('photo_'+tid+'_'+course,data.photo); }
+    catch(e){ console.warn('Photo storage failed (too large?):',e); }
+  } else {
+    try{localStorage.removeItem('tci2026_photo_'+tid+'_'+course);}catch(e){}
+  }
 }
 function getScorePhoto(tid,course){return load('photo_'+tid+'_'+course,null);}
 
@@ -850,11 +863,22 @@ function onPhoto(e){
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=ev=>{
-    photoData=ev.target.result;
-    document.getElementById('photoPreview').src=photoData;
-    document.getElementById('photoPreview').classList.add('show');
-    document.getElementById('upZone').classList.add('has-img');
-    document.getElementById('removePhotoBtn').style.display='block';
+    // Compress image to max 800px wide, 70% quality to fit in localStorage
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=800;
+      const scale=Math.min(1, MAX/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      photoData=canvas.toDataURL('image/jpeg',0.70);
+      document.getElementById('photoPreview').src=photoData;
+      document.getElementById('photoPreview').classList.add('show');
+      document.getElementById('upZone').classList.add('has-img');
+      document.getElementById('removePhotoBtn').style.display='block';
+    };
+    img.src=ev.target.result;
   };
   r.readAsDataURL(f);
 }
@@ -897,16 +921,17 @@ function _doRenderSpecials(key,par,par3,c,day){
   const label=(c==='acc'?'Anniston CC':'Gadsden CC')+' · '+dayLabel;
   const teamOpts=(sel)=>TEAMS.map(t=>`<option value="${t.id}" ${sel===t.id?'selected':''}>  ${t.name}</option>`).join('');
 
-  // SKINS
-  let html=`<div class="card"><div class="card-title">🎰 Skins – ${label} <span style="font-size:12px;font-weight:400;color:var(--gray)">(Low score in full field per hole = $250)</span></div>`;
-  html+='<div style="overflow-x:auto"><table class="sp-tbl"><thead><tr><th>Hole</th><th>Par</th><th>Score</th><th>Winning Team</th></tr></thead><tbody>';
-  for(let h=0;h<18;h++){
-    const sk=sp['skin_'+h]||{};
-    html+=`<tr><td style="font-weight:700">${h+1}</td><td>${par[h]}</td>
-      <td><input type="number" min="1" max="12" value="${sk.score||''}" id="sk_sc_${h}" style="width:52px;padding:5px;border:1px solid #ddd;border-radius:4px;text-align:center" onchange="saveSkin('${c}',${h})"></td>
-      <td><select id="sk_t_${h}" style="font-size:12px;padding:5px;border:1px solid #ddd;border-radius:4px;width:100%;max-width:200px" onchange="saveSkin('${c}',${h})">
-        <option value="">– No skin –</option>${teamOpts(sk.teamId)}</select></td></tr>`;
-  }
+  // SKINS — auto-calculated from entered scores
+  const skinResults = calcSkins(c, day);
+  const skinCount = skinResults.filter(s=>s.winner).length;
+  let html=`<div class="card"><div class="card-title">🎰 Skins – ${label} <span style="font-size:12px;font-weight:400;color:var(--gray)">(Auto-calculated · ${skinCount} skin${skinCount!==1?'s':''} awarded)</span></div>`;
+  html+='<div style="overflow-x:auto"><table class="sp-tbl"><thead><tr><th>Hole</th><th>Par</th><th>Score</th><th>Winner</th></tr></thead><tbody>';
+  skinResults.forEach(sk=>{
+    const winName = sk.winner ? sk.winner.name : (sk.tied?'<span style="color:#e65100">Tied – no skin</span>':'<span style="color:#bbb">No scores yet</span>');
+    const scoreStr = sk.score!==null ? sk.score : '–';
+    const rowStyle = sk.winner?'background:#f0f7f0':'';
+    html+=`<tr style="${rowStyle}"><td style="font-weight:700">${sk.hole}</td><td>${par[sk.hole-1]}</td><td style="font-weight:700;text-align:center">${scoreStr}</td><td>${winName}</td></tr>`;
+  });
   html+='</tbody></table></div></div>';
 
   // CTP
@@ -1170,6 +1195,60 @@ function clearAll(){
 }
 
 // ═══════════════════════════════════════════════
+// PUBLISH SUNDAY TEE TIMES
+// ═══════════════════════════════════════════════
+function publishSundayTT(course){
+  const label = course==='acc'?'Anniston CC':'Gadsden CC';
+  if(!confirm('Publish Sunday '+label+' tee times to the public leaderboard?')) return;
+  // Generate the tee time data and save to Firebase
+  const ttData = generateSundayData(course);
+  db.ref('published_tt/sun_'+course).set(ttData);
+  document.getElementById('tt-publish-status').textContent =
+    '✅ Sunday '+label+' tee times published! ('+ttData.pairs.length+' groups)';
+  showToast('📤 Sunday '+label+' tee times published');
+}
+
+function generateSundayData(sunCourse){
+  // Same sort logic as generateSunday() but returns data array instead of HTML
+  const satCourse=sunCourse==='acc'?'gcc':'acc';
+  const flights=getFlights();
+  const eligible=TEAMS.filter(t=>satCourse==='acc'?t.acc_tee_time!==null:t.gcc_tee_time!==null);
+  const rich=eligible.map(t=>{
+    const s=getScore(t.id,satCourse);
+    const dnf=s&&s.dnf===true;
+    const full=!dnf&&s&&s.team.filter(x=>x!==null).length===18;
+    const total=dnf?null:(full?s.team.reduce((a,b)=>a+b,0):null);
+    const satTT=satCourse==='acc'?t.acc_tee_time:t.gcc_tee_time;
+    const fi=getTeamFlight(t.id);
+    return {id:t.id,name:t.name,satTotal:total,satTT,fi,dnf};
+  });
+  const flightOrder=(fi)=>fi===-1?-1:fi;
+  const ordered=rich.slice().sort((a,b)=>{
+    const aH=a.satTotal!==null&&!a.dnf, bH=b.satTotal!==null&&!b.dnf;
+    if(!aH&&!bH) return (a.satTT||'00:00').localeCompare(b.satTT||'00:00');
+    if(!aH) return -1; if(!bH) return 1;
+    if(flightOrder(b.fi)!==flightOrder(a.fi)) return flightOrder(b.fi)-flightOrder(a.fi);
+    if(b.satTotal!==a.satTotal) return b.satTotal-a.satTotal;
+    return (b.satTT||'00:00').localeCompare(a.satTT||'00:00');
+  });
+  const firstSatTime=SAT[satCourse][0][0];
+  let sunMin=timeToMin(firstSatTime);
+  const INTERVAL=10;
+  const pairs=[];
+  for(let i=0;i<ordered.length;i+=2){
+    const t1=ordered[i],t2=ordered[i+1];
+    pairs.push({
+      time:minToTime(sunMin),
+      team1:{id:t1.id,name:t1.name,flight:t1.fi>=0?(flights[t1.fi]?.name||''):'Unassigned',score:t1.dnf?'DNF':(t1.satTotal??null)},
+      team2:t2?{id:t2.id,name:t2.name,flight:t2.fi>=0?(flights[t2.fi]?.name||''):'Unassigned',score:t2.dnf?'DNF':(t2.satTotal??null)}:null
+    });
+    sunMin+=INTERVAL;
+    if(((i/2+1)%8===0)) sunMin+=10;
+  }
+  return {pairs, course:sunCourse, publishedAt:new Date().toISOString()};
+}
+
+// ═══════════════════════════════════════════════
 // SATURDAY SCORE FILTER (for setting flights)
 // ═══════════════════════════════════════════════
 function renderSatScores(course){
@@ -1348,6 +1427,36 @@ function exportCSV(){
 // ═══════════════════════════════════════════════
 // TOAST & INIT
 // ═══════════════════════════════════════════════
+
+// ── Auto skins calculation ────────────────────────────────────
+function calcSkins(course, day){
+  // Which teams played this course on this day?
+  const eligible = TEAMS.filter(t=>{
+    const satC = t.acc_tee_time ? 'acc' : 'gcc';
+    const sunC = satC==='acc'?'gcc':'acc';
+    const todayCourse = day==='sat' ? satC : sunC;
+    return todayCourse === course;
+  });
+
+  const skins = [];
+  for(let h=0; h<18; h++){
+    let low = null, winners = [], tied = false;
+    eligible.forEach(t=>{
+      const satC = t.acc_tee_time ? 'acc' : 'gcc';
+      const sunC = satC==='acc'?'gcc':'acc';
+      const scoreCourse = day==='sat' ? satC : sunC;
+      const s = getScore(t.id, scoreCourse);
+      if(!s||s.dnf) return;
+      const v = s.team[h];
+      if(v===null||v===undefined) return;
+      if(low===null||v<low){ low=v; winners=[t]; tied=false; }
+      else if(v===low){ winners.push(t); tied=true; }
+    });
+    skins.push({ hole:h+1, score:low, winner:(!tied&&winners.length===1)?winners[0]:null, tied });
+  }
+  return skins;
+}
+// ── Toast ────────────────────────────────────────────
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');

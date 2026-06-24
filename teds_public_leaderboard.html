@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta http-equiv="refresh" content="60">
+
 <title>Ted's Charity Invitational 2026 – Live Leaderboard</title>
 <style>
 :root{--green:#1a4a1a;--gmid:#2d6a2d;--gold:#c9a227;--glite:#f0c040;--cream:#f5f0e8;--red:#c0392b;--gray:#666;--lite:#eee;--shadow:0 2px 8px rgba(0,0,0,.12);}
@@ -54,6 +54,13 @@ tr:hover td{background:#fafafa;}
 .prize-badge{background:var(--gold);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;}
 /* EMPTY */
 .empty{text-align:center;padding:50px 20px;color:var(--gray);}
+.tt-section{margin-bottom:20px;}
+.tt-hdr{background:var(--green);color:white;padding:9px 14px;border-radius:8px 8px 0 0;font-weight:700;font-size:14px;}
+.tt-table{width:100%;border-collapse:collapse;background:white;border-radius:0 0 8px 8px;overflow:hidden;box-shadow:var(--shadow);}
+.tt-table th{background:#f0f0f0;padding:7px 10px;font-size:10px;font-weight:700;color:var(--gray);text-transform:uppercase;text-align:left;}
+.tt-table td{padding:9px 10px;border-bottom:1px solid var(--lite);font-size:13px;}
+.tt-table tr:last-child td{border-bottom:none;}
+.tee-badge-pub{background:var(--green);color:white;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:700;}
 .empty .ico{font-size:52px;margin-bottom:12px;}
 .empty h2{color:var(--green);font-size:18px;margin-bottom:8px;}
 @media(max-width:600px){
@@ -69,19 +76,21 @@ tr:hover td{background:#fafafa;}
   <div class="ico"><img src="data:image/png;base64,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" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);background:white;padding:4px"></div>
   <h1>Ted's Charity Invitational 2026</h1>
   <p>Anniston & Gadsden Country Clubs &bull; July 11–12, 2026</p>
-  <div><span class="live">● LIVE</span></div>
-  <div class="rfsh">Leaderboard refreshes automatically every 60 seconds</div>
+  <div><span class="live" id="live-badge">● LIVE</span> <span id="last-update" style="font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px"></span></div>
+  <div class="rfsh">Updates live as scores are entered · scroll position preserved</div>
 </div>
 
 <div class="tabs">
   <div class="tab on" onclick="switchTab('lb',this)">🏆 Leaderboard</div>
   <div class="tab" onclick="switchTab('sp',this)">⭐ Special Awards</div>
+  <div class="tab" onclick="switchTab('tt',this)">📋 Tee Times</div>
 </div>
 
 
 <div class="content">
   <div id="v-lb" class="view on"></div>
   <div id="v-sp" class="view"></div>
+  <div id="v-tt" class="view"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -192,12 +201,109 @@ function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String
 
 </script>
 <script>
+
+// ── Auto skins calculation ────────────────────────────────────
+function calcSkins(course, day){
+  const eligible = TEAMS.filter(t=>{
+    const satC = t.acc_tee_time ? 'acc' : 'gcc';
+    const sunC = satC==='acc'?'gcc':'acc';
+    const todayCourse = day==='sat' ? satC : sunC;
+    return todayCourse === course;
+  });
+  const skins = [];
+  for(let h=0; h<18; h++){
+    let low=null, winners=[], tied=false;
+    eligible.forEach(t=>{
+      const satC = t.acc_tee_time ? 'acc' : 'gcc';
+      const sunC = satC==='acc'?'gcc':'acc';
+      const scoreCourse = day==='sat' ? satC : sunC;
+      const s = getScore(t.id, scoreCourse);
+      if(!s||s.dnf) return;
+      const v = s.team[h];
+      if(v===null||v===undefined) return;
+      if(low===null||v<low){ low=v; winners=[t]; tied=false; }
+      else if(v===low){ winners.push(t); tied=true; }
+    });
+    skins.push({ hole:h+1, score:low, winner:(!tied&&winners.length===1)?winners[0]:null, tied });
+  }
+  return skins;
+}
+
 function switchTab(v,el){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
   document.getElementById('v-'+v).classList.add('on');
   el.classList.add('on');
   if(v==='sp') loadAndRenderSpecials();
+  if(v==='tt') loadAndRenderTT();
+}
+
+// ── Tee Times ──────────────────────────────────────────────────
+const SAT_PUB={
+  acc:[["07:00","Jamey Davis & Lance Hubbard","Rush Rutledge & Kenny Fulmer"],["07:10","Chris Reaves & Wilton Page","Steve Teague & Eric Ray"],["07:20","Andrew Ford & Skylar Deerman","Justin Brown & Craig Kiker"],["07:30","Ted Heim & Rob Vernon","Jimmy Ingram & David Coffey"],["07:40","Matt McKenneway & Kevin Froemel","Ed Williamson & Tommy Thompson"],["07:50","Richard Dickson & John McKenzie","Brett Rothwell & Greg Smith"],["08:00","Terry Smiley & Kelvin Wright","Bradley Elliott & Aidan Elliott"],["08:20","Diana White & Chad Schmelling","Madilyn Turner & Brady Turner"],["08:30","Kevin Wells & Mike Hughston","Wes Couch & Arlin McCauley"],["08:40","Eric Cannington & Ray Stover","Tony Hicks & Greg Harrelson"],["08:50","Rob Jones & Scott Watson","Mike Thompson & Tim Steward"],["09:00","Steve Akers & Luke Akers","Jason Pierce & Jeremy Johnson"],["09:10","Matt Whitaker & Chris Latta","John Carpenter & John Austin Carpenter"],["09:30","Matt Rogers & Aaron Gregerson","Jeff Noah & Jake Nichols"],["09:40","Dan McClellan & Jarrod Smith","Clay Calkins & George Salmon"],["09:50","Kyle Price & Doug White","Derrick Kirby & Grant Hockman"],["10:00","Brett Key & Matthew Peters","Tyler Huckaby & Trent Lemaster"],["10:10","Clay Blackwell & Daniel Clonts","Heath Waldrop & Greg Rainey"],["10:20","Jay Jenkins & Sam Crisp","Eric Stringer & Bernard Snow"],["10:30","Lee Talbot & Ricky Thomas","Jeff Hammontree & Keith Crumpton"],["10:40","Kevin Wilhoite & Andrew Robinson","Eric Williams & Jonathan Mosley"],["11:00","Chris Randall & Matt Moore","Daniel Black & Brad Loyd"],["11:10","Mark Cotton & Bubba Willingham","Ron McClellan & Gary Austin"],["11:20","Mark Gaines & Andy Jenkins","Danny Whittaker & Chad Watson"],["11:30","Dallis Daugherty & Evan Daugherty","Houston Black & Adam Benefiel"],["11:40","Jason Payne & Andrew Cruthirds","Coleman Messer & Kyle Turner"],["11:50","Nathan Nailor & Nick Carroll","Clay \"Bumper\" Jones & Lenn Coffey"],["12:00","Blake Erwin & Kevin Johnson","David Lipscomb & Danny Owens"],["12:20","Tripp Johnson & Steve Gendron","Ricky Carden & Craig Duncan"],["12:30","Jimbo Phillips & JC Adams","Cal Lambert & Joseph Lambert"],["12:40","Zach Hiett & Kyle Welcher","Tevin Heath & Reggie Patterson"],["12:50","Nick Hubbard & Dakota Clark","Jared Waits & John Grubbs"],["13:00","Rich Etter & Eddie Burks","Tyler TenEyck & Al Johnson"],["13:10","Chris Baker & Brandon Whitman","Jeremy McCullars & Jimbo Williams"],["13:20","Brad Young & Jerry Kemp","Ryder Hudgins & David Messer"],["13:30","Lamar Carter & Manu Sharma","Will Brown & Tyler Dopson"],["13:40","Kenny Okins & Rick Okins","Blake McCurry & Dale Findley"],["13:50","Landon Winfrey & Alex Whaley","Jason Callan & Steve Mack"]],
+  gcc:[["07:30","Chad Key & Tyler McNickle","Jack Svensen & Alex McClellan"],["07:40","Nate Pearce & Nick Jenkins","Randy Lipscomb & Drew Anderton"],["07:50","Mark Durden & Taylor Jones","Chris Hubbard & James Lett"],["08:00","Reed Love & Owen Burt","Billy Thompson & Mike O'Brien"],["08:10","Ryan Moore & Chad Maples","Jordon Anderton & Kevin Schrum"],["08:20","Zach Contris & Cole Contris","Caleb Morrow & Graham Morrow"],["08:30","Scott Murphree & Vann Hall","Alex Harper & Dana Wright"],["08:50","Chris Leonhardt & Michael Rich Jr","Jake Goggans & Rob Davie"],["09:00","Garrett Burgess & Brian Woodfin","Chandler Richards & Dustin Underwood"],["09:10","Doug Gardner & Clay Costner","Justin Graveman & Zac Love"],["09:20","Clay Smith & Blake Gilchrist","Luke Armstrong & Wes Parker"],["09:30","Cody Robinson & Ward Campbell","Randy Reaves & Will Reaves"],["09:40","Dustin Travis & Bob Eaton","Landon Straub & Jason Johnson"],["10:00","Jacob LeCroy & Tanner Wells","Harrison Hughston & Eric Boutwell"],["10:10","Jeremy McGatha & Ted Gregerson","Brennan Clay & Andrew Brooks"],["10:20","Ty Cole & Gary Wigington","Jared Melson & Loren Personett"],["10:30","JT McKenzie & Jonas Rayfield","Ken Goforth & Luke Couch"],["10:40","Jackson King & Freeman Fite","Dane Moore & Corey Ray"],["10:50","Taylor McCullum & Tanner Tabor","Layton Bussey & Mark McCaig"],["11:10","Jacob Harper & Kyle Daugherty","Chad Calvert & Chase Watwood"],["11:20","Lewis LeCroy & Zach Limberis","Henry Pritchett & Michael Downey"],["11:30","Deven Broadway & Ott Chandler","Cory Etter & Cameron McCareeth"],["11:40","Jody Dortch & Matt Deschaine","Josh Ashley & Wayne Copeland"],["11:50","Brandt Middlebrooks & Scott Weatherly","Chandler Wilborn & Cooper Greer"],["12:00","Kevin Daugherty & Darrel Sager","Tee Brown & Eli Edge"],["12:10","John Rollins & Vance Lewis","Harrison Martin & Frankie Wade Jr"],["12:20","Taylor Morrow & Kevin Williamson","Caden Wood & Robin Wood"],["12:40","Trey Rouse & Derek Sewell","Chance Harris & Justin Williams"],["12:50","Daily Thomas & Ethan Davis","Greg Shultz & Tom Lamkin"],["13:00","Ryan Huff & John Lindsey","Cypress Hathorn & James Otwell"],["13:10","Dave Sanders & Adam Sanders","Ryan Powers & Andy Nelson"],["13:20","Timmy Woodard & Chase Thomas","Clayton Chandler & Thomas Kilgore"],["13:30","Ethan McCareeth & Ben Campbell","Landon Holley & Casey Harmon"],["13:40","Caleb Bowen & Taylor Vera","Jeff Bain & Kilgore Knight"],["13:50","Warren Askew & Grant Jackson","Grant Gilmer & Alan Smedley"],["14:00","Carson Chandler & Cam Hurst","Sawyer Edwards & Nick Ledbetter"],["14:10","Keaton Borelli & Ty Webber","Cain Hollingsworth & Taylor O'Connor"],["14:20","Chase Hollingsworth & Jono Waugh","Corey Mize & Kyle Glover"]]
+};
+
+function loadAndRenderTT(){
+  // Check Firebase for published Sunday tee times
+  Promise.all([
+    db.ref('published_tt/sun_acc').once('value'),
+    db.ref('published_tt/sun_gcc').once('value')
+  ]).then(([accSnap, gccSnap])=>{
+    renderTTView(accSnap.val(), gccSnap.val());
+  });
+}
+
+function renderTTView(sunAcc, sunGcc){
+  let html='';
+  // Saturday ACC
+  html+=buildSatTT('acc');
+  // Saturday GCC
+  html+=buildSatTT('gcc');
+  // Sunday — only show if published
+  if(sunAcc||sunGcc){
+    html+=`<div style="background:var(--green);color:white;padding:10px 16px;border-radius:10px;font-weight:700;font-size:15px;margin-bottom:12px;margin-top:8px">📋 Sunday · July 12, 2026</div>`;
+    if(sunAcc) html+=buildSunTT(sunAcc,'Anniston CC');
+    if(sunGcc) html+=buildSunTT(sunGcc,'Gadsden CC');
+  } else {
+    html+=`<div style="background:#f5f5f5;border-radius:10px;padding:20px;text-align:center;color:var(--gray);margin-top:8px">
+      <div style="font-size:24px;margin-bottom:8px">⏳</div>
+      <div style="font-weight:700">Sunday tee times not yet published</div>
+      <div style="font-size:13px;margin-top:4px">Check back after Saturday's round</div>
+    </div>`;
+  }
+  document.getElementById('v-tt').innerHTML=html;
+}
+
+function buildSatTT(course){
+  const label=course==='acc'?'Anniston CC (Low Ball · Par 70)':'Gadsden CC (Scamble · Par 71)';
+  const rows=SAT_PUB[course];
+  let h=`<div style="background:var(--green);color:white;padding:10px 16px;border-radius:10px;font-weight:700;font-size:15px;margin-bottom:12px">📋 Saturday · July 11, 2026 · ${label}</div>`;
+  h+='<div class="tt-section"><table class="tt-table"><thead><tr><th>Tee Time</th><th>Team 1</th><th>Team 2</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    h+=`<tr><td><span class="tee-badge-pub">${r[0]}</span></td><td>${r[1]}</td><td>${r[2]}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+
+function buildSunTT(data, label){
+  let h=`<div class="tt-section"><div class="tt-hdr">${label}</div><table class="tt-table"><thead><tr><th>Tee Time</th><th>Team</th><th>Flight</th><th>Sat Score</th></tr></thead><tbody>`;
+  data.pairs.forEach(p=>{
+    const s1=p.team1.score!==null?p.team1.score:'–';
+    const s2=p.team2?(p.team2.score!==null?p.team2.score:'–'):'';
+    h+=`<tr style="border-top:2px solid var(--green)"><td rowspan="2"><span class="tee-badge-pub">${p.time}</span></td>
+      <td style="font-weight:600">${p.team1.name}</td>
+      <td style="font-size:11px;color:var(--gray)">${p.team1.flight}</td>
+      <td>${s1}</td></tr>`;
+    if(p.team2){
+      h+=`<tr><td style="font-weight:600">${p.team2.name}</td>
+        <td style="font-size:11px;color:var(--gray)">${p.team2.flight}</td>
+        <td>${s2}</td></tr>`;
+    }
+  });
+  h+='</tbody></table></div>';
+  return h;
 }
 
 function renderLB(){
@@ -293,15 +399,14 @@ function renderSpecials(){
     html+=`<div class="sp-subtitle">$250 cash prizes per category</div>`;
     html+=`<div class="sp-grid">`;
 
-    // Skins
-    const skins=[];
-    for(let h=0;h<18;h++){
-      const sk=sp['skin_'+h];
-      if(sk&&sk.teamId){const tm=TEAMS.find(t=>t.id===sk.teamId);if(tm)skins.push({h:h+1,name:tm.name,score:sk.score});}
-    }
+    // Skins — auto-calculated
+    const skinResults=calcSkins(course, day);
     html+=`<div class="sp-card"><h3>🎰 Skins <span class="prize-badge">$250/hole</span></h3>`;
-    if(skins.length){
-      skins.forEach(s=>{html+=`<div class="sp-row"><span class="sp-lbl">Hole ${s.h}</span><span class="sp-win">${s.name}${s.score?' ('+s.score+')':''}</span></div>`;});
+    const awarded=skinResults.filter(s=>s.winner);
+    if(awarded.length){
+      awarded.forEach(s=>{
+        html+=`<div class="sp-row"><span class="sp-lbl">Hole ${s.hole} (${s.score})</span><span class="sp-win">${s.winner.name}</span></div>`;
+      });
     } else { html+='<div class="sp-pend">No skins awarded yet</div>'; }
     html+='</div>';
 
@@ -343,7 +448,7 @@ db.ref('flights').on('value', snap=>{
   if(f&&Array.isArray(f)) _flights=f;
 });
 
-// Real-time score listener
+// Real-time score listener — updates without page reload, preserves scroll position
 db.ref('scores').on('value', snap=>{
   const data=snap.val()||{};
   Object.keys(data).forEach(tid=>{
@@ -352,6 +457,12 @@ db.ref('scores').on('value', snap=>{
     });
   });
   renderLB();
+  // Update last-updated timestamp
+  const el=document.getElementById('last-update');
+  if(el){
+    const now=new Date();
+    el.textContent='Updated '+now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  }
 });
 
 // Specials update when tab is viewed
