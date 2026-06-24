@@ -255,6 +255,8 @@ select:focus,input:focus{border-color:var(--green);}
           </select>
         </div>
       </div>
+      <button class="btn btn-gold" onclick="publishSpecials()" style="margin-top:10px">📤 Publish Special Winners to Public Leaderboard</button>
+      <div id="sp-publish-status" style="font-size:12px;color:var(--green);margin-top:6px"></div>
     </div>
     <div id="sp-out"></div>
   </div>
@@ -1009,6 +1011,50 @@ function saveLP(c,v){
   const sp=_specials[key]||{};
   sp['lp_18']={teamId:v||null}; saveSpecialsForKey(key,sp);
   showToast(v?'Longest putt saved':'Cleared'); renderSpecials();
+}
+
+function publishSpecials(){
+  const day=document.getElementById('sp-day').value;
+  const course=document.getElementById('sp-course').value;
+  const key=day+'_'+course;
+  const dayLabel=day==='sat'?'Saturday':'Sunday';
+  const courseLabel=course==='acc'?'Anniston CC':'Gadsden CC';
+  if(!confirm('Publish '+dayLabel+' '+courseLabel+' special winners to the public leaderboard?')) return;
+
+  const sp=_specials[key]||{};
+  const par3=course==='acc'?ACC_PAR3:GCC_PAR3;
+
+  // Skins — auto-calculated from current scores
+  const skinResults=calcSkins(course,day);
+  const publishedSkins=skinResults
+    .filter(s=>s.winner)
+    .map(s=>({hole:s.hole,score:s.score,teamId:s.winner.id,teamName:s.winner.name}));
+
+  // CTP — from specials entries
+  const publishedCTP=par3.map(h=>{
+    const ctp=sp['ctp_'+h]||{};
+    const tm=ctp.teamId?TEAMS.find(t=>t.id===ctp.teamId):null;
+    return{hole:h,teamId:ctp.teamId||null,teamName:tm?tm.name:null};
+  });
+
+  // Longest putt
+  const lp=sp['lp_18']||{};
+  const lpTeam=lp.teamId?TEAMS.find(t=>t.id===lp.teamId):null;
+
+  const publishData={
+    skins:publishedSkins,
+    ctp:publishedCTP,
+    lp:{teamId:lp.teamId||null,teamName:lpTeam?lpTeam.name:null},
+    publishedAt:new Date().toISOString()
+  };
+
+  db.ref('published_specials/'+key).set(publishData);
+  const msg='✅ '+dayLabel+' '+courseLabel+' published · '+
+    publishedSkins.length+' skin'+(publishedSkins.length!==1?'s':'')+' · '+
+    publishedCTP.filter(c=>c.teamId).length+' CTP winner'+(publishedCTP.filter(c=>c.teamId).length!==1?'s':'')+
+    (lpTeam?' · LP: '+lpTeam.name:'');
+  document.getElementById('sp-publish-status').textContent=msg;
+  showToast('📤 Specials published!');
 }
 
 // ═══════════════════════════════════════════════

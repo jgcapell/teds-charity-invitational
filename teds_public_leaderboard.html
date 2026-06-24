@@ -390,53 +390,59 @@ function renderLB(){
 }
 
 function renderSpecials(){
-  function specialBlock(key, courseLabel, dayLabel){
-    const sp=_specials[key]||{};
-    const course=key.includes('acc')?'acc':'gcc';
-    const par3=course==='acc'?ACC_PAR3:GCC_PAR3;
-    let html=`<div style="margin-bottom:24px">`;
-    html+=`<div class="sp-title" style="font-size:16px">⭐ ${courseLabel} · ${dayLabel}</div>`;
+  function publishedBlock(key, courseLabel, dayLabel){
+    const data=_specials[key]; // null if not yet published
+    let html=`<div style="margin-bottom:20px">`;
+    html+=`<div class="sp-title" style="font-size:15px">⭐ ${courseLabel} · ${dayLabel}</div>`;
     html+=`<div class="sp-subtitle">$250 cash prizes per category</div>`;
-    html+=`<div class="sp-grid">`;
 
-    // Skins — auto-calculated
-    const skinResults=calcSkins(course, day);
+    if(!data){
+      html+=`<div style="background:#f5f5f5;border-radius:10px;padding:16px;text-align:center;color:var(--gray)">
+        <div style="font-size:20px;margin-bottom:6px">⏳</div>
+        <div style="font-weight:700;font-size:13px">Results not yet published</div>
+      </div>`;
+      html+='</div>';
+      return html;
+    }
+
+    html+='<div class="sp-grid">';
+
+    // Skins
     html+=`<div class="sp-card"><h3>🎰 Skins <span class="prize-badge">$250/hole</span></h3>`;
-    const awarded=skinResults.filter(s=>s.winner);
-    if(awarded.length){
-      awarded.forEach(s=>{
-        html+=`<div class="sp-row"><span class="sp-lbl">Hole ${s.hole} (${s.score})</span><span class="sp-win">${s.winner.name}</span></div>`;
+    if(data.skins&&data.skins.length){
+      data.skins.forEach(s=>{
+        html+=`<div class="sp-row"><span class="sp-lbl">Hole ${s.hole} (${s.score})</span><span class="sp-win">${s.teamName}</span></div>`;
       });
-    } else { html+='<div class="sp-pend">No skins awarded yet</div>'; }
+    } else {
+      html+='<div class="sp-pend">No skins awarded</div>';
+    }
     html+='</div>';
 
-    // CTP + Longest Putt
+    // CTP + LP
+    const par3=key.includes('acc')?ACC_PAR3:GCC_PAR3;
     html+=`<div class="sp-card"><h3>🎯 Closest to Pin <span class="prize-badge">$250</span></h3>`;
-    par3.forEach(h=>{
-      const ctp=sp['ctp_'+h]||{};
-      const tm=ctp.teamId?TEAMS.find(t=>t.id===ctp.teamId):null;
-      html+=`<div class="sp-row"><span class="sp-lbl">Hole ${h} (Par 3)</span><span class="${tm?'sp-win':'sp-pend'}">${tm?tm.name:'Pending'}</span></div>`;
-    });
-    const lp=sp['lp_18']||{};
-    const lpTm=lp.teamId?TEAMS.find(t=>t.id===lp.teamId):null;
+    if(data.ctp&&data.ctp.length){
+      data.ctp.forEach(c=>{
+        html+=`<div class="sp-row"><span class="sp-lbl">Hole ${c.hole} (Par 3)</span><span class="${c.teamName?'sp-win':'sp-pend'}">${c.teamName||'Pending'}</span></div>`;
+      });
+    }
+    const lpName=data.lp&&data.lp.teamName?data.lp.teamName:null;
     html+=`<div class="sp-row" style="margin-top:8px;border-top:1px solid var(--lite);padding-top:8px">
       <span class="sp-lbl">🏌️ Longest Putt H18</span>
-      <span class="${lpTm?'sp-win':'sp-pend'}">${lpTm?lpTm.name:'Pending'}</span></div>`;
+      <span class="${lpName?'sp-win':'sp-pend'}">${lpName||'Pending'}</span></div>`;
     html+='</div>';
     html+='</div>'; // sp-grid
-    html+='</div>'; // block
+    html+='</div>';
     return html;
   }
 
   let html='';
-  // Saturday
   html+=`<div style="background:var(--green);color:white;padding:10px 16px;border-radius:10px;font-weight:700;font-size:15px;margin-bottom:12px">⛳ Saturday · July 11, 2026</div>`;
-  html+=specialBlock('sat_acc','Anniston CC','Saturday Jul 11');
-  html+=specialBlock('sat_gcc','Gadsden CC','Saturday Jul 11');
-  // Sunday
+  html+=publishedBlock('sat_acc','Anniston CC','Saturday Jul 11');
+  html+=publishedBlock('sat_gcc','Gadsden CC','Saturday Jul 11');
   html+=`<div style="background:var(--green);color:white;padding:10px 16px;border-radius:10px;font-weight:700;font-size:15px;margin-bottom:12px;margin-top:8px">⛳ Sunday · July 12, 2026</div>`;
-  html+=specialBlock('sun_acc','Anniston CC','Sunday Jul 12');
-  html+=specialBlock('sun_gcc','Gadsden CC','Sunday Jul 12');
+  html+=publishedBlock('sun_acc','Anniston CC','Sunday Jul 12');
+  html+=publishedBlock('sun_gcc','Gadsden CC','Sunday Jul 12');
 
   document.getElementById('v-sp').innerHTML=html;
 }
@@ -467,15 +473,25 @@ db.ref('scores').on('value', snap=>{
 
 // Specials update when tab is viewed
 function loadAndRenderSpecials(){
-  // Load all 4 day+course combos in parallel
+  // Load from published_specials — only shows what admin has explicitly published
   const combos=['sat_acc','sat_gcc','sun_acc','sun_gcc'];
   const promises=combos.map(key=>
-    db.ref('specials/'+key).once('value').then(snap=>{
-      _specials[key]=snap.val()||{};
+    db.ref('published_specials/'+key).once('value').then(snap=>{
+      _specials[key]=snap.val()||null; // null = not yet published
     })
   );
   Promise.all(promises).then(()=>renderSpecials());
 }
+
+// Also listen for real-time specials updates when admin publishes
+db.ref('published_specials').on('value',snap=>{
+  const data=snap.val()||{};
+  ['sat_acc','sat_gcc','sun_acc','sun_gcc'].forEach(key=>{
+    _specials[key]=data[key]||null;
+  });
+  // Only re-render if specials tab is visible
+  if(document.getElementById('v-sp').classList.contains('on')) renderSpecials();
+});
 
 // Initial load
 loadAndRenderSpecials();
