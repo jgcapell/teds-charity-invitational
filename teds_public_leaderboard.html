@@ -319,71 +319,78 @@ function renderLB(){
     return;
   }
 
+  // Sort key: numeric scores only, DNF always last, unscored after DNF
   function sortKey(t){
-    if(t.s.anyDNF) return 88888; // DNF sorts below scores, above unscored
-    if(t.s.total!==null&&t.s.total!=='DNF') return t.s.total;
-    if(t.s.satFull) return t.s.satTotal+10000;
-    if(t.s.satTotal!==null&&t.s.satTotal!=='DNF') return t.s.satTotal+20000;
+    if(t.s.anyDNF) return 90000;
+    const sat = typeof t.s.satTotal==='number' ? t.s.satTotal : null;
+    const sun = typeof t.s.sunTotal==='number' ? t.s.sunTotal : null;
+    if(sat!==null && sun!==null) return sat+sun;
+    if(t.s.satFull && sat!==null) return sat + 10000;
+    if(sat!==null) return sat + 20000;
     return 99999;
   }
 
-  function teamRow(t,pos){
-    const isDNF=t.s.anyDNF;
-    const hasScore=t.s.satTotal!==null||isDNF;
-    const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-    const vpStr=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.total!==null&&t.s.total!=='DNF'?fmtVsPar(t.s.totalVsPar)
-      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
-      :'<span class="no-sc">–</span>'));
-    const partial=t.s.satTotal!==null&&t.s.satTotal!=='DNF'&&!t.s.satFull
-      ?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':''
-    const r1=isDNF&&t.s.satDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?t.s.satTotal+''+partial:'–');
-    const r2=isDNF&&t.s.sunDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.sunTotal!==null&&t.s.sunTotal!=='DNF'?t.s.sunTotal:'–');
-    const tot=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.total!==null&&t.s.total!=='DNF'?t.s.total:'–');
-    return `<tr ${isDNF?'style="opacity:0.7"':''}>
-      <td class="c"><span class="pos ${hasScore&&!isDNF?pc:'pn'}">${hasScore&&!isDNF?pos:isDNF?'⛔':'–'}</span></td>
-      <td><span class="team-nm">${t.name}</span></td>
-      <td class="c">${vpStr}</td>
-      <td class="c">${r1}</td>
-      <td class="c">${r2}</td>
-      <td class="c" style="font-weight:700">${tot}</td></tr>`;
+  // Safe numeric score (never returns 'DNF' string to templates)
+  function safeScore(v){ return typeof v==='number' ? v : '–'; }
+
+  function teamRow(t, pos){
+    const isDNF = t.s.anyDNF === true;
+    const satNum = typeof t.s.satTotal==='number' ? t.s.satTotal : null;
+    const sunNum = typeof t.s.sunTotal==='number' ? t.s.sunTotal : null;
+    const totNum = satNum!==null && sunNum!==null ? satNum+sunNum : null;
+    const hasScore = satNum!==null || isDNF;
+    const pc = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+
+    // vs Par display
+    let vpStr;
+    if(isDNF) vpStr='<span style="color:#c0392b;font-weight:700">DNF</span>';
+    else if(totNum!==null) vpStr=fmtVsPar(totNum-(t.s.satPar+t.s.sunPar));
+    else if(satNum!==null) vpStr=fmtVsPar(satNum-t.s.satPar)+'<span style="font-size:10px;color:#999"> R1</span>';
+    else vpStr='<span class="no-sc">–</span>';
+
+    // R1/R2 display
+    const partial = satNum!==null && !t.s.satFull
+      ? '<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>' : '';
+    const r1 = isDNF && t.s.satDNF ? '<span style="color:#c0392b">DNF</span>' : (satNum!==null ? satNum+partial : '–');
+    const r2 = isDNF && t.s.sunDNF ? '<span style="color:#c0392b">DNF</span>' : (sunNum!==null ? sunNum : '–');
+    const tot = isDNF ? '<span style="color:#c0392b;font-weight:700">DNF</span>' : (totNum!==null ? totNum : '–');
+
+    const posDisplay = isDNF ? '⛔' : (hasScore ? pos : '–');
+    const posClass = isDNF||!hasScore ? 'pn' : pc;
+
+    return `<tr style="${isDNF?'opacity:0.65':''}">      <td class="c"><span class="pos ${posClass}">${posDisplay}</span></td>      <td><span class="team-nm">${t.name}</span></td>      <td class="c">${vpStr}</td>      <td class="c">${r1}</td>      <td class="c">${r2}</td>      <td class="c" style="font-weight:700">${tot}</td></tr>`;
+  }
+
+  // Render table for a list of teams
+  function renderTable(teams){
+    const thead='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
+    let pos=1, rows='';
+    teams.forEach(t=>{
+      rows+=teamRow(t, pos);
+      if(!t.s.anyDNF && typeof t.s.satTotal==='number') pos++;
+    });
+    return thead+rows+'</tbody></table>';
   }
 
   if(!flightsConfigured){
     const sorted=data.slice().sort((a,b)=>sortKey(a)-sortKey(b));
-    const scoredCount=sorted.filter(t=>t.s.satTotal!==null).length;
+    const scoredCount=sorted.filter(t=>typeof t.s.satTotal==='number'&&!t.s.anyDNF).length;
     html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
-    html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
-    let pos=1;
-    sorted.forEach(t=>{
-      html+=teamRow(t,pos);
-      if(t.s.satTotal!==null) pos++;
-    });
-    html+='</tbody></table>';
+    html+=renderTable(sorted);
   } else {
-    // GCC-Saturday flights first (Champ, F1, F2), then ACC-Saturday (F3, F4, F5)
     flights.forEach((f,fi)=>{
       const inF=data.filter(t=>t.fi===fi).sort((a,b)=>sortKey(a)-sortKey(b));
       if(!inF.length) return;
-      const scoredF=inF.filter(t=>t.s.satFull||t.s.total!==null).length;
+      const scoredF=inF.filter(t=>t.s.satFull||typeof t.s.satTotal==='number').length;
       html+=`<div class="flight-block">
-        <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>
-        <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>`;
-      let pos=1;
-      inF.forEach(t=>{html+=teamRow(t,pos);if(t.s.satTotal!==null)pos++;});
-      html+='</tbody></table></div>';
+        <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>`;
+      html+=renderTable(inF);
+      html+='</div>';
     });
-    // Teams not yet assigned
-    const unassigned=data.filter(t=>t.fi===-1&&t.s.satTotal!==null).sort((a,b)=>sortKey(a)-sortKey(b));
+    const unassigned=data.filter(t=>t.fi===-1&&(typeof t.s.satTotal==='number'||t.s.anyDNF)).sort((a,b)=>sortKey(a)-sortKey(b));
     if(unassigned.length){
       html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
-      html+='<table><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
-      let pos=1;
-      unassigned.forEach(t=>{html+=teamRow(t,pos++);});
-      html+='</tbody></table>';
+      html+=renderTable(unassigned);
     }
   }
   document.getElementById('v-lb').innerHTML=html;

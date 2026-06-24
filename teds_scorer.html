@@ -356,6 +356,8 @@ select:focus,input:focus{border-color:var(--green);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
+
+
 const TEAMS=[{"id":"team_001","name":"Jamey Davis & Lance Hubbard","acc_tee_time":"07:00:00","gcc_tee_time":null},{"id":"team_002","name":"Rush Rutledge & Kenny Fulmer","acc_tee_time":"07:00:00","gcc_tee_time":null},{"id":"team_003","name":"Chris Reaves & Wilton Page","acc_tee_time":"07:10:00","gcc_tee_time":null},{"id":"team_004","name":"Steve Teague & Eric Ray","acc_tee_time":"07:10:00","gcc_tee_time":null},{"id":"team_005","name":"Andrew Ford & Skylar Deerman","acc_tee_time":"07:20:00","gcc_tee_time":null},{"id":"team_006","name":"Justin Brown & Craig Kiker","acc_tee_time":"07:20:00","gcc_tee_time":null},{"id":"team_007","name":"Ted Heim & Rob Vernon","acc_tee_time":"07:30:00","gcc_tee_time":null},{"id":"team_008","name":"Jimmy Ingram & David Coffey","acc_tee_time":"07:30:00","gcc_tee_time":null},{"id":"team_009","name":"Matt McKenneway & Kevin Froemel","acc_tee_time":"07:40:00","gcc_tee_time":null},{"id":"team_010","name":"Ed Williamson & Tommy Thompson","acc_tee_time":"07:40:00","gcc_tee_time":null},{"id":"team_011","name":"Richard Dickson & John McKenzie","acc_tee_time":"07:50:00","gcc_tee_time":null},{"id":"team_012","name":"Brett Rothwell & Greg Smith","acc_tee_time":"07:50:00","gcc_tee_time":null},{"id":"team_013","name":"Terry Smiley & Kelvin Wright","acc_tee_time":"08:00:00","gcc_tee_time":null},{"id":"team_014","name":"Bradley Elliott & Aidan Elliott","acc_tee_time":"08:00:00","gcc_tee_time":null},{"id":"team_015","name":"Diana White & Chad Schmelling","acc_tee_time":"08:20:00","gcc_tee_time":null},{"id":"team_016","name":"Madilyn Turner & Brady Turner","acc_tee_time":"08:20:00","gcc_tee_time":null},{"id":"team_017","name":"Kevin Wells & Mike Hughston","acc_tee_time":"08:30:00","gcc_tee_time":null},{"id":"team_018","name":"Wes Couch & Arlin McCauley","acc_tee_time":"08:30:00","gcc_tee_time":null},{"id":"team_019","name":"Eric Cannington & Ray Stover","acc_tee_time":"08:40:00","gcc_tee_time":null},{"id":"team_020","name":"Tony Hicks & Greg Harrelson","acc_tee_time":"08:40:00","gcc_tee_time":null},{"id":"team_021","name":"Rob Jones & Scott Watson","acc_tee_time":"08:50:00","gcc_tee_time":null},{"id":"team_022","name":"Mike Thompson & Tim Steward","acc_tee_time":"08:50:00","gcc_tee_time":null},{"id":"team_023","name":"Steve Akers & Luke Akers","acc_tee_time":"09:00:00","gcc_tee_time":null},{"id":"team_024","name":"Jason Pierce & Jeremy Johnson","acc_tee_time":"09:00:00","gcc_tee_time":null},{"id":"team_025","name":"Matt Whitaker & Chris Latta","acc_tee_time":"09:10:00","gcc_tee_time":null},{"id":"team_026","name":"John Carpenter & John Austin Carpenter","acc_tee_time":"09:10:00","gcc_tee_time":null},{"id":"team_027","name":"Matt Rogers & Aaron Gregerson","acc_tee_time":"09:30:00","gcc_tee_time":null},{"id":"team_028","name":"Jeff Noah & Jake Nichols","acc_tee_time":"09:30:00","gcc_tee_time":null},{"id":"team_029","name":"Dan McClellan & Jarrod Smith","acc_tee_time":"09:40:00","gcc_tee_time":null},{"id":"team_030","name":"Clay Calkins & George Salmon","acc_tee_time":"09:40:00","gcc_tee_time":null},{"id":"team_031","name":"Kyle Price & Doug White","acc_tee_time":"09:50:00","gcc_tee_time":null},{"id":"team_032","name":"Derrick Kirby & Grant Hockman","acc_tee_time":"09:50:00","gcc_tee_time":null},{"id":"team_033","name":"Brett Key & Matthew Peters","acc_tee_time":"10:00:00","gcc_tee_time":null},{"id":"team_034","name":"Tyler Huckaby & Trent Lemaster","acc_tee_time":"10:00:00","gcc_tee_time":null},{"id":"team_035","name":"Clay Blackwell & Daniel Clonts","acc_tee_time":"10:10:00","gcc_tee_time":null},{"id":"team_036","name":"Heath Waldrop & Greg Rainey","acc_tee_time":"10:10:00","gcc_tee_time":null},{"id":"team_037","name":"Jay Jenkins & Sam Crisp","acc_tee_time":"10:20:00","gcc_tee_time":null},{"id":"team_038","name":"Eric Stringer & Bernard Snow","acc_tee_time":"10:20:00","gcc_tee_time":null},{"id":"team_039","name":"Lee Talbot & Ricky Thomas","acc_tee_time":"10:30:00","gcc_tee_time":null},{"id":"team_040","name":"Jeff Hammontree & Keith Crumpton","acc_tee_time":"10:30:00","gcc_tee_time":null},{"id":"team_041","name":"Kevin Wilhoite & Andrew Robinson","acc_tee_time":"10:40:00","gcc_tee_time":null},{"id":"team_042","name":"Eric Williams & Jonathan Mosley","acc_tee_time":"10:40:00","gcc_tee_time":null},{"id":"team_043","name":"Chris Randall & Matt Moore","acc_tee_time":"11:00:00","gcc_tee_time":null},{"id":"team_044","name":"Daniel Black & Brad Loyd","acc_tee_time":"11:00:00","gcc_tee_time":null},{"id":"team_045","name":"Mark Cotton & Bubba Willingham","acc_tee_time":"11:10:00","gcc_tee_time":null},{"id":"team_046","name":"Ron McClellan & Gary Austin","acc_tee_time":"11:10:00","gcc_tee_time":null},{"id":"team_047","name":"Mark Gaines & Andy Jenkins","acc_tee_time":"11:20:00","gcc_tee_time":null},{"id":"team_048","name":"Danny Whittaker & Chad Watson","acc_tee_time":"11:20:00","gcc_tee_time":null},{"id":"team_049","name":"Dallis Daugherty & Evan Daugherty","acc_tee_time":"11:30:00","gcc_tee_time":null},{"id":"team_050","name":"Houston Black & Adam Benefiel","acc_tee_time":"11:30:00","gcc_tee_time":null},{"id":"team_051","name":"Jason Payne & Andrew Cruthirds","acc_tee_time":"11:40:00","gcc_tee_time":null},{"id":"team_052","name":"Coleman Messer & Kyle Turner","acc_tee_time":"11:40:00","gcc_tee_time":null},{"id":"team_053","name":"Nathan Nailor & Nick Carroll","acc_tee_time":"11:50:00","gcc_tee_time":null},{"id":"team_054","name":"Clay \"Bumper\" Jones & Lenn Coffey","acc_tee_time":"11:50:00","gcc_tee_time":null},{"id":"team_055","name":"Blake Erwin & Kevin Johnson","acc_tee_time":"12:00:00","gcc_tee_time":null},{"id":"team_056","name":"David Lipscomb & Danny Owens","acc_tee_time":"12:00:00","gcc_tee_time":null},{"id":"team_057","name":"Tripp Johnson & Steve Gendron","acc_tee_time":"12:20:00","gcc_tee_time":null},{"id":"team_058","name":"Ricky Carden & Craig Duncan","acc_tee_time":"12:20:00","gcc_tee_time":null},{"id":"team_059","name":"Jimbo Phillips & JC Adams","acc_tee_time":"12:30:00","gcc_tee_time":null},{"id":"team_060","name":"Cal Lambert & Joseph Lambert","acc_tee_time":"12:30:00","gcc_tee_time":null},{"id":"team_061","name":"Zach Hiett & Kyle Welcher","acc_tee_time":"12:40:00","gcc_tee_time":null},{"id":"team_062","name":"Tevin Heath & Reggie Patterson","acc_tee_time":"12:40:00","gcc_tee_time":null},{"id":"team_063","name":"Nick Hubbard & Dakota Clark","acc_tee_time":"12:50:00","gcc_tee_time":null},{"id":"team_064","name":"Jared Waits & John Grubbs","acc_tee_time":"12:50:00","gcc_tee_time":null},{"id":"team_065","name":"Rich Etter & Eddie Burks","acc_tee_time":"13:00:00","gcc_tee_time":null},{"id":"team_066","name":"Tyler TenEyck & Al Johnson","acc_tee_time":"13:00:00","gcc_tee_time":null},{"id":"team_067","name":"Chris Baker & Brandon Whitman","acc_tee_time":"13:10:00","gcc_tee_time":null},{"id":"team_068","name":"Jeremy McCullars & Jimbo Williams","acc_tee_time":"13:10:00","gcc_tee_time":null},{"id":"team_069","name":"Brad Young & Jerry Kemp","acc_tee_time":"13:20:00","gcc_tee_time":null},{"id":"team_070","name":"Ryder Hudgins & David Messer","acc_tee_time":"13:20:00","gcc_tee_time":null},{"id":"team_071","name":"Lamar Carter & Manu Sharma","acc_tee_time":"13:30:00","gcc_tee_time":null},{"id":"team_072","name":"Will Brown & Tyler Dopson","acc_tee_time":"13:30:00","gcc_tee_time":null},{"id":"team_073","name":"Kenny Okins & Rick Okins","acc_tee_time":"13:40:00","gcc_tee_time":null},{"id":"team_074","name":"Blake McCurry & Dale Findley","acc_tee_time":"13:40:00","gcc_tee_time":null},{"id":"team_075","name":"Landon Winfrey & Alex Whaley","acc_tee_time":"13:50:00","gcc_tee_time":null},{"id":"team_076","name":"Jason Callan & Steve Mack","acc_tee_time":"13:50:00","gcc_tee_time":null},{"id":"team_077","name":"Chad Key & Tyler McNickle","acc_tee_time":null,"gcc_tee_time":"07:30:00"},{"id":"team_078","name":"Jack Svensen & Alex McClellan","acc_tee_time":null,"gcc_tee_time":"07:30:00"},{"id":"team_079","name":"Nate Pearce & Nick Jenkins","acc_tee_time":null,"gcc_tee_time":"07:40:00"},{"id":"team_080","name":"Randy Lipscomb & Drew Anderton","acc_tee_time":null,"gcc_tee_time":"07:40:00"},{"id":"team_081","name":"Mark Durden & Taylor Jones","acc_tee_time":null,"gcc_tee_time":"07:50:00"},{"id":"team_082","name":"Chris Hubbard & James Lett","acc_tee_time":null,"gcc_tee_time":"07:50:00"},{"id":"team_083","name":"Reed Love & Owen Burt","acc_tee_time":null,"gcc_tee_time":"08:00:00"},{"id":"team_084","name":"Billy Thompson & Mike O'Brien","acc_tee_time":null,"gcc_tee_time":"08:00:00"},{"id":"team_085","name":"Ryan Moore & Chad Maples","acc_tee_time":null,"gcc_tee_time":"08:10:00"},{"id":"team_086","name":"Jordon Anderton & Kevin Schrum","acc_tee_time":null,"gcc_tee_time":"08:10:00"},{"id":"team_087","name":"Zach Contris & Cole Contris","acc_tee_time":null,"gcc_tee_time":"08:20:00"},{"id":"team_088","name":"Caleb Morrow & Graham Morrow","acc_tee_time":null,"gcc_tee_time":"08:20:00"},{"id":"team_089","name":"Scott Murphree & Vann Hall","acc_tee_time":null,"gcc_tee_time":"08:30:00"},{"id":"team_090","name":"Alex Harper & Dana Wright","acc_tee_time":null,"gcc_tee_time":"08:30:00"},{"id":"team_091","name":"Chris Leonhardt & Michael Rich Jr","acc_tee_time":null,"gcc_tee_time":"08:50:00"},{"id":"team_092","name":"Jake Goggans & Rob Davie","acc_tee_time":null,"gcc_tee_time":"08:50:00"},{"id":"team_093","name":"Garrett Burgess & Brian Woodfin","acc_tee_time":null,"gcc_tee_time":"09:00:00"},{"id":"team_094","name":"Chandler Richards & Dustin Underwood","acc_tee_time":null,"gcc_tee_time":"09:00:00"},{"id":"team_095","name":"Doug Gardner & Clay Costner","acc_tee_time":null,"gcc_tee_time":"09:10:00"},{"id":"team_096","name":"Justin Graveman & Zac Love","acc_tee_time":null,"gcc_tee_time":"09:10:00"},{"id":"team_097","name":"Clay Smith & Blake Gilchrist","acc_tee_time":null,"gcc_tee_time":"09:20:00"},{"id":"team_098","name":"Luke Armstrong & Wes Parker","acc_tee_time":null,"gcc_tee_time":"09:20:00"},{"id":"team_099","name":"Cody Robinson & Ward Campbell","acc_tee_time":null,"gcc_tee_time":"09:30:00"},{"id":"team_100","name":"Randy Reaves & Will Reaves","acc_tee_time":null,"gcc_tee_time":"09:30:00"},{"id":"team_101","name":"Dustin Travis & Bob Eaton","acc_tee_time":null,"gcc_tee_time":"09:40:00"},{"id":"team_102","name":"Landon Straub & Jason Johnson","acc_tee_time":null,"gcc_tee_time":"09:40:00"},{"id":"team_103","name":"Jacob LeCroy & Tanner Wells","acc_tee_time":null,"gcc_tee_time":"10:00:00"},{"id":"team_104","name":"Harrison Hughston & Eric Boutwell","acc_tee_time":null,"gcc_tee_time":"10:00:00"},{"id":"team_105","name":"Jeremy McGatha & Ted Gregerson","acc_tee_time":null,"gcc_tee_time":"10:10:00"},{"id":"team_106","name":"Brennan Clay & Andrew Brooks","acc_tee_time":null,"gcc_tee_time":"10:10:00"},{"id":"team_107","name":"Ty Cole & Gary Wigington","acc_tee_time":null,"gcc_tee_time":"10:20:00"},{"id":"team_108","name":"Jared Melson & Loren Personett","acc_tee_time":null,"gcc_tee_time":"10:20:00"},{"id":"team_109","name":"JT McKenzie & Jonas Rayfield","acc_tee_time":null,"gcc_tee_time":"10:30:00"},{"id":"team_110","name":"Ken Goforth & Luke Couch","acc_tee_time":null,"gcc_tee_time":"10:30:00"},{"id":"team_111","name":"Jackson King & Freeman Fite","acc_tee_time":null,"gcc_tee_time":"10:40:00"},{"id":"team_112","name":"Dane Moore & Corey Ray","acc_tee_time":null,"gcc_tee_time":"10:40:00"},{"id":"team_113","name":"Taylor McCullum & Tanner Tabor","acc_tee_time":null,"gcc_tee_time":"10:50:00"},{"id":"team_114","name":"Layton Bussey & Mark McCaig","acc_tee_time":null,"gcc_tee_time":"10:50:00"},{"id":"team_115","name":"Jacob Harper & Kyle Daugherty","acc_tee_time":null,"gcc_tee_time":"11:10:00"},{"id":"team_116","name":"Chad Calvert & Chase Watwood","acc_tee_time":null,"gcc_tee_time":"11:10:00"},{"id":"team_117","name":"Lewis LeCroy & Zach Limberis","acc_tee_time":null,"gcc_tee_time":"11:20:00"},{"id":"team_118","name":"Henry Pritchett & Michael Downey","acc_tee_time":null,"gcc_tee_time":"11:20:00"},{"id":"team_119","name":"Deven Broadway & Ott Chandler","acc_tee_time":null,"gcc_tee_time":"11:30:00"},{"id":"team_120","name":"Cory Etter & Cameron McCareeth","acc_tee_time":null,"gcc_tee_time":"11:30:00"},{"id":"team_121","name":"Jody Dortch & Matt Deschaine","acc_tee_time":null,"gcc_tee_time":"11:40:00"},{"id":"team_122","name":"Josh Ashley & Wayne Copeland","acc_tee_time":null,"gcc_tee_time":"11:40:00"},{"id":"team_123","name":"Brandt Middlebrooks & Scott Weatherly","acc_tee_time":null,"gcc_tee_time":"11:50:00"},{"id":"team_124","name":"Chandler Wilborn & Cooper Greer","acc_tee_time":null,"gcc_tee_time":"11:50:00"},{"id":"team_125","name":"Kevin Daugherty & Darrel Sager","acc_tee_time":null,"gcc_tee_time":"12:00:00"},{"id":"team_126","name":"Tee Brown & Eli Edge","acc_tee_time":null,"gcc_tee_time":"12:00:00"},{"id":"team_127","name":"John Rollins & Vance Lewis","acc_tee_time":null,"gcc_tee_time":"12:10:00"},{"id":"team_128","name":"Harrison Martin & Frankie Wade Jr","acc_tee_time":null,"gcc_tee_time":"12:10:00"},{"id":"team_129","name":"Taylor Morrow & Kevin Williamson","acc_tee_time":null,"gcc_tee_time":"12:20:00"},{"id":"team_130","name":"Caden Wood & Robin Wood","acc_tee_time":null,"gcc_tee_time":"12:20:00"},{"id":"team_131","name":"Trey Rouse & Derek Sewell","acc_tee_time":null,"gcc_tee_time":"12:40:00"},{"id":"team_132","name":"Chance Harris & Justin Williams","acc_tee_time":null,"gcc_tee_time":"12:40:00"},{"id":"team_133","name":"Daily Thomas & Ethan Davis","acc_tee_time":null,"gcc_tee_time":"12:50:00"},{"id":"team_134","name":"Greg Shultz & Tom Lamkin","acc_tee_time":null,"gcc_tee_time":"12:50:00"},{"id":"team_135","name":"Ryan Huff & John Lindsey","acc_tee_time":null,"gcc_tee_time":"13:00:00"},{"id":"team_136","name":"Cypress Hathorn & James Otwell","acc_tee_time":null,"gcc_tee_time":"13:00:00"},{"id":"team_137","name":"Dave Sanders & Adam Sanders","acc_tee_time":null,"gcc_tee_time":"13:10:00"},{"id":"team_138","name":"Ryan Powers & Andy Nelson","acc_tee_time":null,"gcc_tee_time":"13:10:00"},{"id":"team_139","name":"Timmy Woodard & Chase Thomas","acc_tee_time":null,"gcc_tee_time":"13:20:00"},{"id":"team_140","name":"Clayton Chandler & Thomas Kilgore","acc_tee_time":null,"gcc_tee_time":"13:20:00"},{"id":"team_141","name":"Ethan McCareeth & Ben Campbell","acc_tee_time":null,"gcc_tee_time":"13:30:00"},{"id":"team_142","name":"Landon Holley & Casey Harmon","acc_tee_time":null,"gcc_tee_time":"13:30:00"},{"id":"team_143","name":"Caleb Bowen & Taylor Vera","acc_tee_time":null,"gcc_tee_time":"13:40:00"},{"id":"team_144","name":"Jeff Bain & Kilgore Knight","acc_tee_time":null,"gcc_tee_time":"13:40:00"},{"id":"team_145","name":"Warren Askew & Grant Jackson","acc_tee_time":null,"gcc_tee_time":"13:50:00"},{"id":"team_146","name":"Grant Gilmer & Alan Smedley","acc_tee_time":null,"gcc_tee_time":"13:50:00"},{"id":"team_147","name":"Carson Chandler & Cam Hurst","acc_tee_time":null,"gcc_tee_time":"14:00:00"},{"id":"team_148","name":"Sawyer Edwards & Nick Ledbetter","acc_tee_time":null,"gcc_tee_time":"14:00:00"},{"id":"team_149","name":"Keaton Borelli & Ty Webber","acc_tee_time":null,"gcc_tee_time":"14:10:00"},{"id":"team_150","name":"Cain Hollingsworth & Taylor O'Connor","acc_tee_time":null,"gcc_tee_time":"14:10:00"},{"id":"team_151","name":"Chase Hollingsworth & Jono Waugh","acc_tee_time":null,"gcc_tee_time":"14:20:00"},{"id":"team_152","name":"Corey Mize & Kyle Glover","acc_tee_time":null,"gcc_tee_time":"14:20:00"}];
 const ACC_PAR=[4,4,4,3,3,4,4,4,4,4,5,3,4,4,4,3,5,4];
 const GCC_PAR=[4,3,5,4,4,3,4,4,4,4,4,5,3,5,3,4,4,4];
@@ -486,8 +488,12 @@ function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String
 function timeToMin(t){if(!t)return 0;const p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
 function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 
+
+
 </script>
 <script>
+
+
 // ═══════════════════════════════════════════════
 // SCORING STATE
 // ═══════════════════════════════════════════════
@@ -556,36 +562,39 @@ function renderLB(){
   }
 
   function sortKey(t){
-    if(t.s.anyDNF) return 88888; // DNF sorts below scores, above unscored
-    if(t.s.total!==null&&t.s.total!=='DNF') return t.s.total;
-    if(t.s.satFull) return t.s.satTotal+10000;
-    if(t.s.satTotal!==null&&t.s.satTotal!=='DNF') return t.s.satTotal+20000;
+    if(t.s.anyDNF===true) return 90000;
+    const sat=typeof t.s.satTotal==='number'?t.s.satTotal:null;
+    const sun=typeof t.s.sunTotal==='number'?t.s.sunTotal:null;
+    if(sat!==null&&sun!==null) return sat+sun;
+    if(t.s.satFull&&sat!==null) return sat+10000;
+    if(sat!==null) return sat+20000;
     return 99999;
   }
 
   function teamRow(t,pos){
-    const isDNF=t.s.anyDNF;
-    const hasScore=t.s.satTotal!==null||isDNF;
+    const isDNF=t.s.anyDNF===true;
+    const satNum=typeof t.s.satTotal==='number'?t.s.satTotal:null;
+    const sunNum=typeof t.s.sunTotal==='number'?t.s.sunTotal:null;
+    const totNum=satNum!==null&&sunNum!==null?satNum+sunNum:null;
+    const hasScore=satNum!==null||isDNF;
     const pc=pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-    const vpStr=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.total!==null&&t.s.total!=='DNF'?fmtVsPar(t.s.totalVsPar)
-      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?fmtVsPar(t.s.satVsPar)+'<span style="font-size:10px;color:#999"> R1</span>'
-      :'<span class="no-sc">–</span>'));
-    const partial=t.s.satTotal!==null&&t.s.satTotal!=='DNF'&&!t.s.satFull
-      ?'<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>':''
-    const r1=isDNF&&t.s.satDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.satTotal!==null&&t.s.satTotal!=='DNF'?t.s.satTotal+''+partial:'–');
-    const r2=isDNF&&t.s.sunDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.sunTotal!==null&&t.s.sunTotal!=='DNF'?t.s.sunTotal:'–');
-    const tot=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>'
-      :(t.s.total!==null&&t.s.total!=='DNF'?t.s.total:'–');
-    return `<tr ${isDNF?'style="opacity:0.7"':''}>
-      <td class="c"><span class="pos-badge ${hasScore&&!isDNF?pc:'pn'}">${hasScore&&!isDNF?pos:isDNF?'⛔':'–'}</span></td>
-      <td><span class="team-nm">${t.name}</span></td>
-      <td class="c">${vpStr}</td>
-      <td class="c">${r1}</td>
-      <td class="c">${r2}</td>
-      <td class="c" style="font-weight:700">${tot}</td></tr>`;
+    let vpStr;
+    if(isDNF) vpStr='<span style="color:#c0392b;font-weight:700">DNF</span>';
+    else if(totNum!==null) vpStr=fmtVsPar(totNum-(t.s.satPar+t.s.sunPar));
+    else if(satNum!==null) vpStr=fmtVsPar(satNum-t.s.satPar)+'<span style="font-size:10px;color:#999"> R1</span>';
+    else vpStr='<span class="no-sc">–</span>';
+    const r1=isDNF&&t.s.satDNF?'<span style="color:#c0392b">DNF</span>':(satNum!==null?satNum:'--');
+    const r2=isDNF&&t.s.sunDNF?'<span style="color:#c0392b">DNF</span>':(sunNum!==null?sunNum:'--');
+    const tot=isDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>':(totNum!==null?totNum:'--');
+    const posDisplay=isDNF?'X':(hasScore?pos:'--');
+    const posClass=isDNF||!hasScore?'pn':pc;
+    return '<tr style="'+(isDNF?'opacity:0.65':'')+'">'
+      +'<td class="c"><span class="pos-badge '+posClass+'">'+posDisplay+'</span></td>'
+      +'<td style="font-weight:600">'+t.name+'</td>'
+      +'<td class="c">'+vpStr+'</td>'
+      +'<td class="c">'+r1+'</td>'
+      +'<td class="c">'+r2+'</td>'
+      +'<td class="c" style="font-weight:700">'+tot+'</td></tr>';
   }
 
   if(!flightsConfigured){
@@ -609,7 +618,7 @@ function renderLB(){
         <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>
         <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>`;
       let pos=1;
-      inF.forEach(t=>{html+=teamRow(t,pos);if(t.s.satTotal!==null)pos++;});
+      inF.forEach(t=>{html+=teamRow(t,pos);if(!t.s.anyDNF&&typeof t.s.satTotal==='number')pos++;});
       html+='</tbody></table></div>';
     });
     // Teams not yet assigned
@@ -1728,7 +1737,7 @@ function showToast(msg){
 
 function initApp(){
   curCourse='acc';
-  filterTeams(); // show team list immediately before Firebase loads
+  filterTeams(); // populate team list immediately before Firebase loads
   showToast('🔄 Loading scores from server…');
   // Load all scores from Firebase into local cache, then render
   db.ref('scores').once('value').then(snap=>{
@@ -1798,6 +1807,8 @@ function initApp(){
     }
   });
 }
+
+
 </script>
 </body>
 </html>
