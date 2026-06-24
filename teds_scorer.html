@@ -533,6 +533,7 @@ function showView(v){
     t.classList.toggle('on', VIEWS[i]===v);
   });
   if(v==='lb') renderLB();
+  if(v==='score') filterTeams();
   if(v==='specials') renderSpecials();
   if(v==='tt') renderTT();
   if(v==='admin') renderAdmin();
@@ -1727,6 +1728,7 @@ function showToast(msg){
 
 function initApp(){
   curCourse='acc';
+  filterTeams(); // show team list immediately before Firebase loads
   showToast('🔄 Loading scores from server…');
   // Load all scores from Firebase into local cache, then render
   db.ref('scores').once('value').then(snap=>{
