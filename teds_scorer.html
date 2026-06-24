@@ -329,21 +329,7 @@ select:focus,input:focus{border-color:var(--green);}
       <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Downloads a CSV file openable in Excel with all hole-by-hole team scores.</p>
       <button class="btn btn-gold" onclick="exportCSV()">⬇ Download Score Export (.csv)</button>
     </div>
-    <div class="card">
-      <div class="card-title">🔑 Change Scorer PIN</div>
-      <label>New Scorer PIN</label><input type="password" id="pin1" style="margin-bottom:8px">
-      <label>Confirm Scorer PIN</label><input type="password" id="pin2" style="margin-bottom:8px">
-      <button class="btn btn-gold" onclick="changePin()">Update Scorer PIN</button>
-      <div id="pin-msg" style="font-size:13px;margin-top:6px"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">🔐 Change Admin PIN</div>
-      <p style="font-size:13px;color:var(--gray);margin-bottom:10px">Used to protect test data population and score clearing. Default: <strong>ADMIN2026</strong></p>
-      <label>New Admin PIN</label><input type="password" id="apin1" style="margin-bottom:8px">
-      <label>Confirm Admin PIN</label><input type="password" id="apin2" style="margin-bottom:8px">
-      <button class="btn btn-gold" onclick="changeAdminPin()">Update Admin PIN</button>
-      <div id="apin-msg" style="font-size:13px;margin-top:6px"></div>
-    </div>
+
     <div class="card">
       <div class="card-title">🧪 Test Data</div>
       <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Populates realistic random scores for all 152 teams. Use to smoke test leaderboard, flights, and Sunday tee times before the tournament.</p>
@@ -951,6 +937,8 @@ function getSpecialsKeyed(){return load('specials_'+getSpecKey(),{});}
 function saveSpecialsKeyed(d){store('specials_'+getSpecKey(),d);}
 
 function renderSpecials(){
+  // Clear autocomplete init cache so new DOM elements get listeners
+  Object.keys(_acInited).forEach(k=>delete _acInited[k]);
   const day=document.getElementById('sp-day').value;
   const c=document.getElementById('sp-course').value;
   const key=day+'_'+c;
@@ -1596,48 +1584,70 @@ function calcSkins(course, day){
 }
 // ── Toast ────────────────────────────────────────────
 // ── Autocomplete ──────────────────────────────────────────────
+// Autocomplete state — track which inputs have been initialized
+const _acInited = {};
+
 function buildAC(inputId, dropId, action){
+  // Only attach listeners once per input — use oninput/onblur/onkeydown directly
+  if(_acInited[inputId]) return;
+  _acInited[inputId] = true;
+
   const inp = document.getElementById(inputId);
   const drop = document.getElementById(dropId);
   if(!inp||!drop) return;
-  // Remove old listeners by cloning
-  const newInp = inp.cloneNode(true);
-  inp.parentNode.replaceChild(newInp, inp);
-  const ni = document.getElementById(inputId);
 
-  ni.addEventListener('input', ()=>{
-    const q = ni.value.trim().toLowerCase();
+  inp.oninput = function(){
+    const q = this.value.trim().toLowerCase();
     if(!q){ drop.classList.remove('show'); return; }
-    const matches = PLAYERS.filter(p=>p.toLowerCase().includes(q)).slice(0,10);
+    const matches = PLAYERS.filter(p=>p.toLowerCase().includes(q)).slice(0,12);
     if(!matches.length){ drop.classList.remove('show'); return; }
     drop.innerHTML = matches.map(p=>{
-      const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return `<div class="ac-item" onmousedown="event.preventDefault()" onclick="selectAC('${inputId}','${dropId}','${safe}','${action}')">${p}</div>`;
+      const safe = p.replace(/'/g,"&#39;");
+      return `<div class="ac-item" onmousedown="event.preventDefault();acPick('${inputId}','${dropId}','${safe}','${action}')">${p}</div>`;
     }).join('');
     drop.classList.add('show');
-  });
-  ni.addEventListener('blur', ()=>{ setTimeout(()=>drop.classList.remove('show'),150); });
-  ni.addEventListener('keydown', e=>{
+  };
+
+  inp.onblur = function(){
+    // Delay so mousedown on item fires before blur hides dropdown
+    setTimeout(()=>drop.classList.remove('show'), 200);
+  };
+
+  inp.onkeydown = function(e){
+    if(!drop.classList.contains('show')) return;
     const items=[...drop.querySelectorAll('.ac-item')];
     const cur=items.findIndex(i=>i.classList.contains('active'));
-    if(e.key==='ArrowDown'){e.preventDefault();const nx=Math.min(cur+1,items.length-1);items.forEach((i,idx)=>i.classList.toggle('active',idx===nx));}
-    else if(e.key==='ArrowUp'){e.preventDefault();const nx=Math.max(cur-1,0);items.forEach((i,idx)=>i.classList.toggle('active',idx===nx));}
-    else if(e.key==='Enter'&&cur>=0){e.preventDefault();items[cur].click();}
-    else if(e.key==='Escape'){drop.classList.remove('show');}
-  });
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      const nx=Math.min(cur+1,items.length-1);
+      items.forEach((el,i)=>el.classList.toggle('active',i===nx));
+    } else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      const nx=Math.max(cur-1,0);
+      items.forEach((el,i)=>el.classList.toggle('active',i===nx));
+    } else if(e.key==='Enter'&&cur>=0){
+      e.preventDefault();
+      const selected=items[cur];
+      // Extract text content (the player name)
+      acPick(inputId, dropId, selected.textContent, action);
+    } else if(e.key==='Escape'){
+      drop.classList.remove('show');
+    }
+  };
 }
 
-function selectAC(inputId, dropId, val, action){
+function acPick(inputId, dropId, val, action){
   const inp=document.getElementById(inputId);
   const drop=document.getElementById(dropId);
-  if(inp) inp.value=val;
-  if(drop) drop.classList.remove('show');
-  // Parse action string: 'ctp:acc:4' or 'lp:acc'
+  if(inp){ inp.value=val; }
+  if(drop){ drop.classList.remove('show'); }
   if(action){
     const parts=action.split(':');
     if(parts[0]==='ctp') saveCTP(parts[1], parseInt(parts[2]), val);
     else if(parts[0]==='lp') saveLP(parts[1], val);
   }
+  // Refresh the specials display to show the saved winner
+  renderSpecials();
 }
 
 // ── Number Picker ────────────────────────────────────────────
