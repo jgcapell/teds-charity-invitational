@@ -1562,8 +1562,11 @@ function initApp(){
       ['acc','gcc'].forEach(course=>{
         if(data[tid][course]){
           const d=data[tid][course];
-          // restore photo from localStorage if exists
-          d.photo=load('photo_'+tid+'_'+course,null);
+          // Keep photo from Firebase; only fall back to localStorage if Firebase has none
+          if(!d.photo){
+            const localPhoto=load('photo_'+tid+'_'+course,null);
+            if(localPhoto) d.photo=localPhoto;
+          }
           _scores[tid+'_'+course]=d;
         }
       });
@@ -1584,7 +1587,11 @@ function initApp(){
       ['acc','gcc'].forEach(course=>{
         if(data[tid][course]){
           const d=data[tid][course];
-          d.photo=load('photo_'+tid+'_'+course,null);
+          // Preserve Firebase photo; only use localStorage if Firebase has none
+          if(!d.photo){
+            const localPhoto=load('photo_'+tid+'_'+course,null);
+            if(localPhoto) d.photo=localPhoto;
+          }
           // Don't overwrite cache for the team currently being edited
           const activeKey = curTeam ? curTeam.id+'_'+getScoreCourse() : null;
           if(tid+'_'+course !== activeKey){
