@@ -146,17 +146,19 @@ function getSunPar(tid){ return getSunCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTA
 function getTeamStats(tid){
   const satC=getSatCourse(tid), sunC=getSunCourse(tid);
   const satS=getScore(tid,satC), sunS=getScore(tid,sunC);
-  const satDNF=satS&&satS.dnf===true;
-  const sunDNF=sunS&&sunS.dnf===true;
+  const satDNF=!!(satS&&satS.dnf===true);
+  const sunDNF=!!(sunS&&sunS.dnf===true);
+  const anyDNF=satDNF||sunDNF;
+  // DNF teams: return null for all numeric fields, only flag anyDNF
+  // The DNF card in renderLB handles their display — main leaderboard ignores them
   const satHoles=satS&&!satDNF?satS.team.filter(x=>x!==null):[];
   const sunHoles=sunS&&!sunDNF?sunS.team.filter(x=>x!==null):[];
   const satFull=!satDNF&&satHoles.length===18;
   const sunFull=!sunDNF&&sunHoles.length===18;
-  const satTotal=satDNF?'DNF':(satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null);
-  const sunTotal=sunDNF?'DNF':(sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null);
+  const satTotal=satDNF?null:(satHoles.length>0?satHoles.reduce((a,b)=>a+b,0):null);
+  const sunTotal=sunDNF?null:(sunHoles.length>0?sunHoles.reduce((a,b)=>a+b,0):null);
   const satPar=getSatPar(tid), sunPar=getSunPar(tid);
-  const anyDNF=satDNF||sunDNF;
-  const total=anyDNF?'DNF':(satFull&&sunFull?satTotal+sunTotal:null);
+  const total=(satFull&&sunFull)?satTotal+sunTotal:null;
   const accTotal=satC==='acc'?satTotal:(sunC==='acc'?sunTotal:null);
   const gccTotal=satC==='gcc'?satTotal:(sunC==='gcc'?sunTotal:null);
   return{
@@ -164,14 +166,15 @@ function getTeamStats(tid){
     satFull, sunFull,
     satDNF, sunDNF, anyDNF,
     satPar, sunPar,
-    satVsPar:(!satDNF&&satTotal!==null)?satTotal-satPar:null,
-    sunVsPar:(!sunDNF&&sunTotal!==null)?sunTotal-sunPar:null,
-    totalVsPar:(!anyDNF&&total!==null)?total-(satPar+sunPar):null,
+    satVsPar:(satTotal!==null)?satTotal-satPar:null,
+    sunVsPar:(sunTotal!==null)?sunTotal-sunPar:null,
+    totalVsPar:(total!==null)?total-(satPar+sunPar):null,
     accTotal, gccTotal,
     satHolesPlayed:satHoles.length,
     sunHolesPlayed:sunHoles.length
   };
 }
+
 function getFlights(){return load('flights',[
   {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
   {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
