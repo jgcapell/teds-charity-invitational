@@ -448,10 +448,13 @@ function renderSpecials(){
 }
 
 // Real-time listeners — update instantly when Firebase data changes
-// Load flights from Firebase (set by admin in scorer app)
+// Load flights from Firebase — re-render leaderboard when admin saves flights
 db.ref('flights').on('value', snap=>{
   const f=snap.val();
-  if(f&&Array.isArray(f)) _flights=f;
+  if(f&&Array.isArray(f)){
+    _flights=f;
+    renderLB(); // refresh flight groupings immediately
+  }
 });
 
 // Real-time score listener — updates without page reload, preserves scroll position

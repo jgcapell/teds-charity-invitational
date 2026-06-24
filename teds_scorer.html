@@ -433,25 +433,28 @@ function getSunPar(tid){ return getSunCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTA
 function getTeamStats(tid){
   const satC=getSatCourse(tid), sunC=getSunCourse(tid);
   const satS=getScore(tid,satC), sunS=getScore(tid,sunC);
-  // Use running total (partial ok) for display; full-round flag for official scoring
-  const satHoles=satS?satS.team.filter(x=>x!==null):[];
-  const sunHoles=sunS?sunS.team.filter(x=>x!==null):[];
-  const satFull=satHoles.length===18, sunFull=sunHoles.length===18;
-  const satTotal=satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
-  const sunTotal=sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const satDNF=satS&&satS.dnf===true;
+  const sunDNF=sunS&&sunS.dnf===true;
+  const satHoles=satS&&!satDNF?satS.team.filter(x=>x!==null):[];
+  const sunHoles=sunS&&!sunDNF?sunS.team.filter(x=>x!==null):[];
+  const satFull=!satDNF&&satHoles.length===18;
+  const sunFull=!sunDNF&&sunHoles.length===18;
+  const satTotal=satDNF?'DNF':(satHoles.length>0?satS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null);
+  const sunTotal=sunDNF?'DNF':(sunHoles.length>0?sunS.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null);
   const satPar=getSatPar(tid), sunPar=getSunPar(tid);
-  const total=(satFull&&sunFull)?satTotal+sunTotal:null;
-  // Legacy aliases for leaderboard columns (R1=acc, R2=gcc)
+  const anyDNF=satDNF||sunDNF;
+  const total=anyDNF?'DNF':(satFull&&sunFull?satTotal+sunTotal:null);
   const accTotal=satC==='acc'?satTotal:(sunC==='acc'?sunTotal:null);
   const gccTotal=satC==='gcc'?satTotal:(sunC==='gcc'?sunTotal:null);
   return{
     satTotal, sunTotal, total,
     satFull, sunFull,
+    satDNF, sunDNF, anyDNF,
     satPar, sunPar,
-    satVsPar:satTotal!==null?satTotal-satPar:null,
-    sunVsPar:sunTotal!==null?sunTotal-sunPar:null,
-    totalVsPar:total!==null?total-(satPar+sunPar):null,
-    accTotal, gccTotal,  // kept for leaderboard R1/R2 display
+    satVsPar:(!satDNF&&satTotal!==null)?satTotal-satPar:null,
+    sunVsPar:(!sunDNF&&sunTotal!==null)?sunTotal-sunPar:null,
+    totalVsPar:(!anyDNF&&total!==null)?total-(satPar+sunPar):null,
+    accTotal, gccTotal,
     satHolesPlayed:satHoles.length,
     sunHolesPlayed:sunHoles.length
   };
@@ -1271,7 +1274,7 @@ function saveFlights(){
   db.ref('flights').set(flights);
   showToast('Flights saved!');
   renderLB();
-  renderAdmin(); // refresh to show saved values
+  renderAdmin();
 }
 
 function changePin(){
@@ -1304,9 +1307,13 @@ function clearAll(){
   if(!confirm('Delete ALL scores? This cannot be undone.')) return;
   db.ref('scores').remove();
   db.ref('specials').remove();
+  db.ref('published_specials').remove();
+  db.ref('published_tt').remove();
+  db.ref('flights').remove();
   Object.keys(_scores).forEach(k=>delete _scores[k]);
   Object.keys(_specials).forEach(k=>delete _specials[k]);
   Object.keys(_buf).forEach(k=>delete _buf[k]);
+  localStorage.removeItem('tci2026_flights');
   curTeam=null;
   document.getElementById('cardPanel').style.display='none';
   TEAMS.forEach(t=>{
@@ -1314,7 +1321,7 @@ function clearAll(){
       try{localStorage.removeItem('tci2026_photo_'+t.id+'_'+c);}catch(e){}
     });
   });
-  showToast('✅ All scores cleared');
+  showToast('✅ All data cleared');
   filterTeams();
   renderLB();
   renderAdmin();
