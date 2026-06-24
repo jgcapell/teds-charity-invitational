@@ -129,6 +129,17 @@ select:focus,input:focus{border-color:var(--green);}
 .alert-info{background:#e3f2fd;color:#1565c0;border-left:4px solid #1565c0;padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:10px;}
 .alert-warn{background:#fff3e0;color:#e65100;border-left:4px solid #e65100;padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:10px;}
 .divider{border:none;border-top:1px solid var(--lite);margin:14px 0;}
+/* Autocomplete */
+.ac-wrap{position:relative;width:100%;}
+.ac-input{width:100%;padding:9px 10px;border:2px solid var(--lite);border-radius:8px;font-size:14px;outline:none;font-family:inherit;}
+.ac-input:focus{border-color:var(--green);}
+.ac-drop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.12);display:none;}
+.ac-drop.show{display:block;}
+.ac-item{padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--lite);}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover,.ac-item.active{background:var(--green);color:#fff;}
+.ac-clear{font-size:11px;color:var(--gray);cursor:pointer;margin-top:3px;display:inline-block;}
+.ac-clear:hover{color:var(--red);}
 @media(max-width:580px){
   .score-sum{grid-template-columns:repeat(2,1fr);}
   .a-grid{grid-template-columns:1fr;}
@@ -256,6 +267,7 @@ select:focus,input:focus{border-color:var(--green);}
         </div>
       </div>
       <button class="btn btn-gold" onclick="publishSpecials()" style="margin-top:10px">📤 Publish Special Winners to Public Leaderboard</button>
+      <button class="btn btn-gray" onclick="clearPublishedSpecials()" style="margin-top:8px">🗑 Clear Published Specials from Public Leaderboard</button>
       <div id="sp-publish-status" style="font-size:12px;color:var(--green);margin-top:6px"></div>
     </div>
     <div id="sp-out"></div>
@@ -362,6 +374,7 @@ const TEAMS=[{"id":"team_001","name":"Jamey Davis & Lance Hubbard","acc_tee_time
 const ACC_PAR=[4,4,4,3,3,4,4,4,4,4,5,3,4,4,4,3,5,4];
 const GCC_PAR=[4,3,5,4,4,3,4,4,4,4,4,5,3,5,3,4,4,4];
 const ACC_PAR3=[4,5,12,16];
+const PLAYERS = ["Aaron Gregerson", "Adam Benefiel", "Adam Sanders", "Aidan Elliott", "Al Johnson", "Alan Smedley", "Alex Harper", "Alex McClellan", "Alex Whaley", "Andrew Brooks", "Andrew Cruthirds", "Andrew Ford", "Andrew Robinson", "Andy Jenkins", "Andy Nelson", "Arlin McCauley", "Ben Campbell", "Bernard Snow", "Billy Thompson", "Blake Erwin", "Blake Gilchrist", "Blake McCurry", "Bob Eaton", "Brad Loyd", "Brad Young", "Bradley Elliott", "Brady Turner", "Brandon Whitman", "Brandt Middlebrooks", "Brennan Clay", "Brett Key", "Brett Rothwell", "Brian Woodfin", "Bubba Willingham", "Caden Wood", "Cain Hollingsworth", "Cal Lambert", "Caleb Bowen", "Caleb Morrow", "Cam Hurst", "Cameron McCareeth", "Carson Chandler", "Casey Harmon", "Chad Calvert", "Chad Key", "Chad Maples", "Chad Schmelling", "Chad Watson", "Chance Harris", "Chandler Richards", "Chandler Wilborn", "Chase Hollingsworth", "Chase Thomas", "Chase Watwood", "Chris Baker", "Chris Hubbard", "Chris Latta", "Chris Leonhardt", "Chris Randall", "Chris Reaves", "Clay \"Bumper\" Jones", "Clay Blackwell", "Clay Calkins", "Clay Costner", "Clay Smith", "Clayton Chandler", "Cody Robinson", "Cole Contris", "Coleman Messer", "Cooper Greer", "Corey Mize", "Corey Ray", "Cory Etter", "Craig Duncan", "Craig Kiker", "Cypress Hathorn", "Daily Thomas", "Dakota Clark", "Dale Findley", "Dallis Daugherty", "Dan McClellan", "Dana Wright", "Dane Moore", "Daniel Black", "Daniel Clonts", "Danny Owens", "Danny Whittaker", "Darrel Sager", "Dave Sanders", "David Coffey", "David Lipscomb", "David Messer", "Derek Sewell", "Derrick Kirby", "Deven Broadway", "Diana White", "Doug Gardner", "Doug White", "Drew Anderton", "Dustin Travis", "Dustin Underwood", "Ed Williamson", "Eddie Burks", "Eli Edge", "Eric Boutwell", "Eric Cannington", "Eric Ray", "Eric Stringer", "Eric Williams", "Ethan Davis", "Ethan McCareeth", "Evan Daugherty", "Frankie Wade Jr", "Freeman Fite", "Garrett Burgess", "Gary Austin", "Gary Wigington", "George Salmon", "Graham Morrow", "Grant Gilmer", "Grant Hockman", "Grant Jackson", "Greg Harrelson", "Greg Rainey", "Greg Shultz", "Greg Smith", "Harrison Hughston", "Harrison Martin", "Heath Waldrop", "Henry Pritchett", "Houston Black", "JC Adams", "JT McKenzie", "Jack Svensen", "Jackson King", "Jacob Harper", "Jacob LeCroy", "Jake Goggans", "Jake Nichols", "James Lett", "James Otwell", "Jamey Davis", "Jared Melson", "Jared Waits", "Jarrod Smith", "Jason Callan", "Jason Johnson", "Jason Payne", "Jason Pierce", "Jay Jenkins", "Jeff Bain", "Jeff Hammontree", "Jeff Noah", "Jeremy Johnson", "Jeremy McCullars", "Jeremy McGatha", "Jerry Kemp", "Jimbo Phillips", "Jimbo Williams", "Jimmy Ingram", "Jody Dortch", "John Austin Carpenter", "John Carpenter", "John Grubbs", "John Lindsey", "John McKenzie", "John Rollins", "Jonas Rayfield", "Jonathan Mosley", "Jono Waugh", "Jordon Anderton", "Joseph Lambert", "Josh Ashley", "Justin Brown", "Justin Graveman", "Justin Williams", "Keaton Borelli", "Keith Crumpton", "Kelvin Wright", "Ken Goforth", "Kenny Fulmer", "Kenny Okins", "Kevin Daugherty", "Kevin Froemel", "Kevin Johnson", "Kevin Schrum", "Kevin Wells", "Kevin Wilhoite", "Kevin Williamson", "Kilgore Knight", "Kyle Daugherty", "Kyle Glover", "Kyle Price", "Kyle Turner", "Kyle Welcher", "Lamar Carter", "Lance Hubbard", "Landon Holley", "Landon Straub", "Landon Winfrey", "Layton Bussey", "Lee Talbot", "Lenn Coffey", "Lewis LeCroy", "Loren Personett", "Luke Akers", "Luke Armstrong", "Luke Couch", "Madilyn Turner", "Manu Sharma", "Mark Cotton", "Mark Durden", "Mark Gaines", "Mark McCaig", "Matt Deschaine", "Matt McKenneway", "Matt Moore", "Matt Rogers", "Matt Whitaker", "Matthew Peters", "Michael Downey", "Michael Rich Jr", "Mike Hughston", "Mike O'Brien", "Mike Thompson", "Nate Pearce", "Nathan Nailor", "Nick Carroll", "Nick Hubbard", "Nick Jenkins", "Nick Ledbetter", "Ott Chandler", "Owen Burt", "Randy Lipscomb", "Randy Reaves", "Ray Stover", "Reed Love", "Reggie Patterson", "Rich Etter", "Richard Dickson", "Rick Okins", "Ricky Carden", "Ricky Thomas", "Rob Davie", "Rob Jones", "Rob Vernon", "Robin Wood", "Ron McClellan", "Rush Rutledge", "Ryan Huff", "Ryan Moore", "Ryan Powers", "Ryder Hudgins", "Sam Crisp", "Sawyer Edwards", "Scott Murphree", "Scott Watson", "Scott Weatherly", "Skylar Deerman", "Steve Akers", "Steve Gendron", "Steve Mack", "Steve Teague", "Tanner Tabor", "Tanner Wells", "Taylor Jones", "Taylor McCullum", "Taylor Morrow", "Taylor O'Connor", "Taylor Vera", "Ted Gregerson", "Ted Heim", "Tee Brown", "Terry Smiley", "Tevin Heath", "Thomas Kilgore", "Tim Steward", "Timmy Woodard", "Tom Lamkin", "Tommy Thompson", "Tony Hicks", "Trent Lemaster", "Trey Rouse", "Tripp Johnson", "Ty Cole", "Ty Webber", "Tyler Dopson", "Tyler Huckaby", "Tyler McNickle", "Tyler TenEyck", "Vance Lewis", "Vann Hall", "Ward Campbell", "Warren Askew", "Wayne Copeland", "Wes Couch", "Wes Parker", "Will Brown", "Will Reaves", "Wilton Page", "Zac Love", "Zach Contris", "Zach Hiett", "Zach Limberis"];
 const GCC_PAR3=[2,6,13,15];
 const ACC_TOTAL_PAR=70;
 const GCC_TOTAL_PAR=71;
@@ -968,31 +981,45 @@ function _doRenderSpecials(key,par,par3,c,day){
   });
   html+='</tbody></table></div></div>';
 
-  // CTP
-  html+=`<div class="card"><div class="card-title">🎯 Closest to Pin – ${label} <span style="font-size:12px;font-weight:400;color:var(--gray)">(All Par 3s · $250 each)</span></div>`;
+  // CTP — autocomplete individual player name
+  html+=`<div class="card"><div class="card-title">🎯 Closest to Pin – ${label} <span style="font-size:12px;font-weight:400;color:var(--gray)">(All Par 3s · $250 each · individual player)</span></div>`;
   par3.forEach(h=>{
     const ctp=sp['ctp_'+h]||{};
-    html+=`<div style="margin-bottom:12px"><label>Hole ${h} (Par 3)</label>
-      <select style="padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:100%" onchange="saveCTP('${c}',${h},this.value)">
-        <option value="">– No winner yet –</option>${teamOpts(ctp.teamId)}
-      </select>
-      ${ctp.teamId?'<div style="font-size:12px;color:var(--green);margin-top:3px">✅ '+TEAMS.find(t=>t.id===ctp.teamId)?.name+'</div>':''}
+    const ctpVal=ctp.playerName||'';
+    html+=`<div style="margin-bottom:14px">
+      <label>Hole ${h} (Par 3)</label>
+      <div class="ac-wrap">
+        <input class="ac-input" id="ctp_inp_${h}" value="${ctpVal}" placeholder="Type player name…"
+          autocomplete="off" oninput="buildAC('ctp_inp_${h}','ctp_drop_${h}',\`saveCTP('${c}',${h},val)\`)">
+        <div class="ac-drop" id="ctp_drop_${h}"></div>
+      </div>
+      ${ctpVal?`<span class="ac-clear" onclick="clearCTP('${c}',${h})">✕ Clear winner</span><span style="font-size:12px;color:var(--green);margin-left:8px">✅ ${ctpVal}</span>`:''}
     </div>`;
   });
   html+='</div>';
 
-  // LONGEST PUTT
+  // LONGEST PUTT — autocomplete individual player name
   const lp=sp['lp_18']||{};
-  const lpTeam=lp.teamId?TEAMS.find(t=>t.id===lp.teamId):null;
-  html+=`<div class="card"><div class="card-title">🏌️ Longest Putt – Hole 18 · $250</div>
-    <select style="padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:100%;margin-bottom:8px" onchange="saveLP('${c}',this.value)">
-      <option value="">– No winner yet –</option>${teamOpts(lp.teamId)}
-    </select>
-    ${lpTeam?'<div style="font-size:12px;color:var(--green)">✅ '+lpTeam.name+'</div>':''}
+  const lpVal=lp.playerName||'';
+  html+=`<div class="card"><div class="card-title">🏌️ Longest Putt – Hole 18 · $250 <span style="font-size:12px;font-weight:400;color:var(--gray)">(individual player)</span></div>
+    <div class="ac-wrap">
+      <input class="ac-input" id="lp_inp" value="${lpVal}" placeholder="Type player name…"
+        autocomplete="off" oninput="buildAC('lp_inp','lp_drop',\`saveLP('${c}',val)\`)">
+      <div class="ac-drop" id="lp_drop"></div>
+    </div>
+    ${lpVal?`<span class="ac-clear" onclick="clearLP('${c}')">✕ Clear winner</span><span style="font-size:12px;color:var(--green);margin-left:8px">✅ ${lpVal}</span>`:''}
   </div>`;
 
   document.getElementById('sp-out').innerHTML=html;
+  // Wire up autocomplete after DOM is updated
+  setTimeout(()=>{
+    par3.forEach(h=>{
+      buildAC('ctp_inp_'+h, 'ctp_drop_'+h, 'ctp:'+c+':'+h);
+    });
+    buildAC('lp_inp', 'lp_drop', 'lp:'+c);
+  },0);
 }
+
 
 function saveSkin(c,h){
   const key=getSpecKey();
@@ -1000,17 +1027,51 @@ function saveSkin(c,h){
   sp['skin_'+h]={score:parseInt(document.getElementById('sk_sc_'+h).value)||null, teamId:document.getElementById('sk_t_'+h).value||null};
   saveSpecialsForKey(key,sp); showToast('Skin H'+(h+1)+' saved');
 }
-function saveCTP(c,h,v){
+function saveCTP(c,h,playerName){
   const key=getSpecKey();
   const sp=_specials[key]||{};
-  sp['ctp_'+h]={teamId:v||null}; saveSpecialsForKey(key,sp);
-  showToast(v?'CTP saved':'CTP cleared'); renderSpecials();
+  sp['ctp_'+h]={playerName:playerName||null};
+  saveSpecialsForKey(key,sp);
+  showToast(playerName?'CTP saved: '+playerName:'CTP cleared');
 }
-function saveLP(c,v){
+
+function clearCTP(c,h){
   const key=getSpecKey();
   const sp=_specials[key]||{};
-  sp['lp_18']={teamId:v||null}; saveSpecialsForKey(key,sp);
-  showToast(v?'Longest putt saved':'Cleared'); renderSpecials();
+  sp['ctp_'+h]={playerName:null};
+  saveSpecialsForKey(key,sp);
+  const inp=document.getElementById('ctp_inp_'+h);
+  if(inp) inp.value='';
+  showToast('CTP cleared');
+}
+function saveLP(c,playerName){
+  const key=getSpecKey();
+  const sp=_specials[key]||{};
+  sp['lp_18']={playerName:playerName||null};
+  saveSpecialsForKey(key,sp);
+  showToast(playerName?'Longest putt saved: '+playerName:'Cleared');
+}
+
+function clearLP(c){
+  const key=getSpecKey();
+  const sp=_specials[key]||{};
+  sp['lp_18']={playerName:null};
+  saveSpecialsForKey(key,sp);
+  const inp=document.getElementById('lp_inp');
+  if(inp) inp.value='';
+  showToast('Longest putt cleared');
+}
+
+function clearPublishedSpecials(){
+  const day=document.getElementById('sp-day').value;
+  const course=document.getElementById('sp-course').value;
+  const key=day+'_'+course;
+  const dayLabel=day==='sat'?'Saturday':'Sunday';
+  const courseLabel=course==='acc'?'Anniston CC':'Gadsden CC';
+  if(!confirm('Clear '+dayLabel+' '+courseLabel+' specials from the public leaderboard?')) return;
+  db.ref('published_specials/'+key).remove();
+  document.getElementById('sp-publish-status').textContent='🗑 '+dayLabel+' '+courseLabel+' specials cleared from public leaderboard';
+  showToast('Specials cleared from public leaderboard');
 }
 
 function publishSpecials(){
@@ -1030,29 +1091,28 @@ function publishSpecials(){
     .filter(s=>s.winner)
     .map(s=>({hole:s.hole,score:s.score,teamId:s.winner.id,teamName:s.winner.name}));
 
-  // CTP — from specials entries
+  // CTP — individual player names
   const publishedCTP=par3.map(h=>{
     const ctp=sp['ctp_'+h]||{};
-    const tm=ctp.teamId?TEAMS.find(t=>t.id===ctp.teamId):null;
-    return{hole:h,teamId:ctp.teamId||null,teamName:tm?tm.name:null};
+    return{hole:h,playerName:ctp.playerName||null};
   });
 
-  // Longest putt
+  // Longest putt — individual player name
   const lp=sp['lp_18']||{};
-  const lpTeam=lp.teamId?TEAMS.find(t=>t.id===lp.teamId):null;
 
   const publishData={
     skins:publishedSkins,
     ctp:publishedCTP,
-    lp:{teamId:lp.teamId||null,teamName:lpTeam?lpTeam.name:null},
+    lp:{playerName:lp.playerName||null},
     publishedAt:new Date().toISOString()
   };
 
   db.ref('published_specials/'+key).set(publishData);
+  const ctpCount=publishedCTP.filter(c=>c.playerName).length;
   const msg='✅ '+dayLabel+' '+courseLabel+' published · '+
     publishedSkins.length+' skin'+(publishedSkins.length!==1?'s':'')+' · '+
-    publishedCTP.filter(c=>c.teamId).length+' CTP winner'+(publishedCTP.filter(c=>c.teamId).length!==1?'s':'')+
-    (lpTeam?' · LP: '+lpTeam.name:'');
+    ctpCount+' CTP winner'+(ctpCount!==1?'s':'')+
+    (lp.playerName?' · LP: '+lp.playerName:'');
   document.getElementById('sp-publish-status').textContent=msg;
   showToast('📤 Specials published!');
 }
@@ -1535,6 +1595,51 @@ function calcSkins(course, day){
   return skins;
 }
 // ── Toast ────────────────────────────────────────────
+// ── Autocomplete ──────────────────────────────────────────────
+function buildAC(inputId, dropId, action){
+  const inp = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  if(!inp||!drop) return;
+  // Remove old listeners by cloning
+  const newInp = inp.cloneNode(true);
+  inp.parentNode.replaceChild(newInp, inp);
+  const ni = document.getElementById(inputId);
+
+  ni.addEventListener('input', ()=>{
+    const q = ni.value.trim().toLowerCase();
+    if(!q){ drop.classList.remove('show'); return; }
+    const matches = PLAYERS.filter(p=>p.toLowerCase().includes(q)).slice(0,10);
+    if(!matches.length){ drop.classList.remove('show'); return; }
+    drop.innerHTML = matches.map(p=>{
+      const safe = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div class="ac-item" onmousedown="event.preventDefault()" onclick="selectAC('${inputId}','${dropId}','${safe}','${action}')">${p}</div>`;
+    }).join('');
+    drop.classList.add('show');
+  });
+  ni.addEventListener('blur', ()=>{ setTimeout(()=>drop.classList.remove('show'),150); });
+  ni.addEventListener('keydown', e=>{
+    const items=[...drop.querySelectorAll('.ac-item')];
+    const cur=items.findIndex(i=>i.classList.contains('active'));
+    if(e.key==='ArrowDown'){e.preventDefault();const nx=Math.min(cur+1,items.length-1);items.forEach((i,idx)=>i.classList.toggle('active',idx===nx));}
+    else if(e.key==='ArrowUp'){e.preventDefault();const nx=Math.max(cur-1,0);items.forEach((i,idx)=>i.classList.toggle('active',idx===nx));}
+    else if(e.key==='Enter'&&cur>=0){e.preventDefault();items[cur].click();}
+    else if(e.key==='Escape'){drop.classList.remove('show');}
+  });
+}
+
+function selectAC(inputId, dropId, val, action){
+  const inp=document.getElementById(inputId);
+  const drop=document.getElementById(dropId);
+  if(inp) inp.value=val;
+  if(drop) drop.classList.remove('show');
+  // Parse action string: 'ctp:acc:4' or 'lp:acc'
+  if(action){
+    const parts=action.split(':');
+    if(parts[0]==='ctp') saveCTP(parts[1], parseInt(parts[2]), val);
+    else if(parts[0]==='lp') saveLP(parts[1], val);
+  }
+}
+
 // ── Number Picker ────────────────────────────────────────────
 let _pickerHole = null;
 

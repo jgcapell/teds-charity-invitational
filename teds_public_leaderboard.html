@@ -423,10 +423,10 @@ function renderSpecials(){
     html+=`<div class="sp-card"><h3>🎯 Closest to Pin <span class="prize-badge">$250</span></h3>`;
     if(data.ctp&&data.ctp.length){
       data.ctp.forEach(c=>{
-        html+=`<div class="sp-row"><span class="sp-lbl">Hole ${c.hole} (Par 3)</span><span class="${c.teamName?'sp-win':'sp-pend'}">${c.teamName||'Pending'}</span></div>`;
+        html+=`<div class="sp-row"><span class="sp-lbl">Hole ${c.hole} (Par 3)</span><span class="${c.playerName?'sp-win':'sp-pend'}">${c.playerName||'Pending'}</span></div>`;
       });
     }
-    const lpName=data.lp&&data.lp.teamName?data.lp.teamName:null;
+    const lpName=data.lp&&data.lp.playerName?data.lp.playerName:null;
     html+=`<div class="sp-row" style="margin-top:8px;border-top:1px solid var(--lite);padding-top:8px">
       <span class="sp-lbl">🏌️ Longest Putt H18</span>
       <span class="${lpName?'sp-win':'sp-pend'}">${lpName||'Pending'}</span></div>`;
