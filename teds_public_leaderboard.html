@@ -120,18 +120,7 @@ let _flights=[
   {name:'Flight 5',color:'#6a1a4a',min:0,max:999}
 ];
 function getFlights(){return _flights;}
-function getTeamFlight(tid){
-  const flights=getFlights();
-  const satC = TEAMS.find(t=>t.id===tid)?.acc_tee_time ? 'acc' : 'gcc';
-  const s=getScore(tid,satC);
-  const sat=s&&s.team.filter(x=>x!==null).length===18
-    ? s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0) : null;
-  if(sat===null) return -1;
-  for(let i=0;i<flights.length;i++){
-    if(flights[i].course===satC && sat>=flights[i].min && sat<=flights[i].max) return i;
-  }
-  return -1;
-}
+// getTeamFlight defined below
 // ── Team helpers ──────────────────────────────────────────────
 function getSatCourse(tid){
   // teams 001-076 have acc_tee_time -> played ACC Saturday
@@ -188,8 +177,10 @@ function getTeamFlight(tid){
   const flights=getFlights();
   const satC=getSatCourse(tid);
   const s=getScore(tid,satC);
-  const satScore=s&&s.team.filter(x=>x!==null).length===18
-    ?s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  if(!s||s.dnf===true) return -1;
+  const teamArr=Array.isArray(s.team)?s.team:[];
+  const filled=teamArr.filter(x=>x!==null&&x!==undefined);
+  const satScore=filled.length===18?filled.reduce((a,b)=>a+b,0):null;
   if(satScore===null)return -1;
   for(let i=0;i<flights.length;i++){
     if(flights[i].course===satC&&satScore>=flights[i].min&&satScore<=flights[i].max)return i;

@@ -409,19 +409,7 @@ function getFlights(){return load('flights',[
   {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
   {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
 ]);}
-function getTeamFlight(tid){
-  const flights=getFlights();
-  const satC = TEAMS.find(t=>t.id===tid)?.acc_tee_time ? 'acc' : 'gcc';
-  const s=getScore(tid,satC);
-  const sat=s&&s.team.filter(x=>x!==null).length===18
-    ? s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0) : null;
-  if(sat===null) return -1;
-  // Match on both score range AND course
-  for(let i=0;i<flights.length;i++){
-    if(flights[i].course===satC && sat>=flights[i].min && sat<=flights[i].max) return i;
-  }
-  return -1;
-}
+// getTeamFlight defined below with DNF/array guard
 // ── Team helpers ──────────────────────────────────────────────
 function getSatCourse(tid){
   const t=TEAMS.find(x=>x.id===tid);
