@@ -309,7 +309,10 @@ function buildSunTT(data, label){
 function renderLB(){
   const flights=getFlights();
   const flightsConfigured=flights.some(f=>f.min!==0||f.max!==999);
-  const data=TEAMS.map(t=>({...t,s:getTeamStats(t.id),fi:getTeamFlight(t.id)}));
+  const allData=TEAMS.map(t=>({...t,s:getTeamStats(t.id),fi:getTeamFlight(t.id)}));
+  // Separate DNF teams — handle them independently at bottom of leaderboard
+  const dnfTeams=allData.filter(t=>t.s.anyDNF===true);
+  const data=allData.filter(t=>t.s.anyDNF!==true);
   const anyScores=data.some(t=>t.s.satTotal!==null);
   let html='';
 
@@ -392,6 +395,18 @@ function renderLB(){
       html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
       html+=renderTable(unassigned);
     }
+  }
+  // DNF card — separate from main leaderboard logic
+  if(dnfTeams.length){
+    html+='<div style="margin-top:16px">';
+    html+='<div class="flight-hdr" style="background:#c0392b">⛔ Did Not Finish <span>'+dnfTeams.length+' team'+(dnfTeams.length!==1?'s':'')+'</span></div>';
+    html+='<table><thead><tr><th style="width:36px"></th><th>Team</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th></tr></thead><tbody>';
+    dnfTeams.forEach(t=>{
+      const r1=t.s.satDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>':(typeof t.s.satTotal==='number'?t.s.satTotal:'–');
+      const r2=t.s.sunDNF?'<span style="color:#c0392b;font-weight:700">DNF</span>':(typeof t.s.sunTotal==='number'?t.s.sunTotal:'–');
+      html+='<tr style="opacity:0.75"><td class="c"><span class="pos pn">⛔</span></td><td><span class="team-nm">'+t.name+'</span></td><td class="c">'+r1+'</td><td class="c">'+r2+'</td></tr>';
+    });
+    html+='</tbody></table></div>';
   }
   document.getElementById('v-lb').innerHTML=html;
 }
