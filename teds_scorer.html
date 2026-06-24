@@ -206,11 +206,10 @@ select:focus,input:focus{border-color:var(--green);}
         <div id="dnfBanner" style="display:none;background:#c0392b;color:white;padding:10px 14px;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:10px;display:none">
           ⛔ This team is marked DNF for this round. Click "Clear & Reset" to remove the DNF flag.
         </div>
-        <div class="half-btns">
-          <button class="half-btn on" id="btn-front" onclick="setHalf('front')">Front 9 (1–9)</button>
-          <button class="half-btn" id="btn-back" onclick="setHalf('back')">Back 9 (10–18)</button>
-        </div>
-        <div class="hole-grid" id="holeGrid"></div>
+        <div class="section-label" style="margin-bottom:6px">Front 9 (1–9)</div>
+        <div class="hole-grid" id="holeGridFront"></div>
+        <div class="section-label" style="margin-bottom:6px;margin-top:12px">Back 9 (10–18)</div>
+        <div class="hole-grid" id="holeGridBack"></div>
         <div class="score-sum">
           <div class="sum-box hi"><div class="sum-lbl">Team Total</div><div class="sum-val" id="s-total">–</div></div>
           <div class="sum-box"><div class="sum-lbl">vs Par</div><div class="sum-val" id="s-par">–</div></div>
@@ -727,12 +726,7 @@ function collapseCard(){
   Object.keys(_buf).forEach(k=>delete _buf[k]);
 }
 
-function setHalf(h){
-  curHalf=h;
-  document.getElementById('btn-front').classList.toggle('on',h==='front');
-  document.getElementById('btn-back').classList.toggle('on',h==='back');
-  renderCard();
-}
+// setHalf removed — both 9s shown simultaneously
 
 function renderCard(){
   if(!curTeam) return;
@@ -750,24 +744,26 @@ function renderCard(){
   const dayLabel=day==='sat'?'Sat Jul 11':'Sun Jul 12';
   document.getElementById('cardTitle').textContent = curTeam.name+' · '+scoreCourse.toUpperCase()+' · '+dayLabel;
   document.getElementById('fmtNote').textContent = '📋 '+fmtLabel;
-  const start = curHalf==='front'?0:9;
-  const holes = Array.from({length:9},(_,i)=>start+i);
-  let html='';
-  holes.forEach(h=>{
-    const isP3=par3.includes(h+1);
-    const v=scores[h]!==null?scores[h]:'';
-    const diff = v!==''?v-par[h]:null;
-    let clr='#333';
-    if(diff!==null){ if(diff<0)clr='var(--red)'; else if(diff===0)clr='var(--green)'; }
-    html+=`<div class="hole-cell" onclick="openPicker(${h})" style="cursor:pointer">
-      <div class="h-num">${h+1}</div>
-      <div class="h-par" style="color:${isP3?'var(--gold)':'var(--gray)'}">P${par[h]}</div>
-      <div class="h-inp ${v?'filled':''} ${isP3?'p3':''}"
-        id="h${h}" style="color:${v!==''?clr:'#bbb'};display:flex;align-items:center;justify-content:center;min-height:36px;font-size:18px;font-weight:700;border-radius:6px;border:2px solid ${v!==''?(isP3?'var(--gold)':'var(--gmid)'):'var(--lite)'};background:${v!==''?'#f0f7f0':'#fff'}"
-      >${v!==''?v:'–'}</div>
-    </div>`;
-  });
-  document.getElementById('holeGrid').innerHTML=html;
+  function buildNineHTML(startH){
+    let h='';
+    for(let i=startH;i<startH+9;i++){
+      const isP3=par3.includes(i+1);
+      const v=scores[i]!==null&&scores[i]!==undefined?scores[i]:'';
+      const diff=v!==''?v-par[i]:null;
+      let clr='#333';
+      if(diff!==null){ if(diff<0)clr='var(--red)'; else if(diff===0)clr='var(--green)'; }
+      h+=`<div class="hole-cell" onclick="openPicker(${i})" style="cursor:pointer">
+        <div class="h-num">${i+1}</div>
+        <div class="h-par" style="color:${isP3?'var(--gold)':'var(--gray)'}">P${par[i]}</div>
+        <div class="h-inp ${v?'filled':''} ${isP3?'p3':''}"
+          id="h${i}" style="color:${v!==''?clr:'#bbb'};display:flex;align-items:center;justify-content:center;min-height:36px;font-size:18px;font-weight:700;border-radius:6px;border:2px solid ${v!==''?(isP3?'var(--gold)':'var(--gmid)'):'var(--lite)'};background:${v!==''?'#f0f7f0':'#fff'}"
+        >${v!==''?v:'–'}</div>
+      </div>`;
+    }
+    return h;
+  }
+  document.getElementById('holeGridFront').innerHTML=buildNineHTML(0);
+  document.getElementById('holeGridBack').innerHTML=buildNineHTML(9);
   updateSummary();
   // Show/hide DNF banner and lock inputs
   const isDNF = ex && ex.dnf === true;
@@ -828,7 +824,8 @@ function getAllHoles(){
 }
 
 function updateSummary(){
-  const par=curCourse==='acc'?ACC_PAR:GCC_PAR;
+  const scoreCourse=getScoreCourse();
+  const par=scoreCourse==='acc'?ACC_PAR:GCC_PAR;
   const parTotal=par.reduce((a,b)=>a+b,0);
   const team=getAllHoles();
   const front=team.slice(0,9).filter(x=>x!==null);
@@ -1521,19 +1518,27 @@ function pickScore(val){
   document.getElementById('pickerOverlay').style.display='none';
   if(_pickerHole===null) return;
   const h = _pickerHole;
-  const inp = document.getElementById('h'+h);
-  if(inp){
+  const cell = document.getElementById('h'+h);
+  const par = (getScoreCourse()==='acc'?ACC_PAR:GCC_PAR)[h];
+  const par3 = getScoreCourse()==='acc'?ACC_PAR3:GCC_PAR3;
+  const isP3 = par3.includes(h+1);
+  if(cell){
     if(val!==null){
-      inp.value = val;
-      inp.classList.add('filled');
-      const par=(getScoreCourse()==='acc'?ACC_PAR:GCC_PAR)[h];
       const diff=val-par;
-      inp.style.color=diff<0?'var(--red)':diff===0?'var(--green)':'#333';
+      const clr=diff<0?'var(--red)':diff===0?'var(--green)':'#333';
+      const borderClr=isP3?'var(--gold)':'var(--gmid)';
+      cell.textContent=val;
+      cell.style.color=clr;
+      cell.style.border='2px solid '+borderClr;
+      cell.style.background='#f0f7f0';
+      cell.classList.add('filled');
       _buf[h]=val;
     } else {
-      inp.value='';
-      inp.classList.remove('filled');
-      inp.style.color='#333';
+      cell.textContent='–';
+      cell.style.color='#bbb';
+      cell.style.border='2px solid var(--lite)';
+      cell.style.background='#fff';
+      cell.classList.remove('filled');
       delete _buf[h];
     }
     updateSummary();
