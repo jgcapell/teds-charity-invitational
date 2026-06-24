@@ -149,10 +149,11 @@ function getTeamStats(tid){
   const satDNF=!!(satS&&satS.dnf===true);
   const sunDNF=!!(sunS&&sunS.dnf===true);
   const anyDNF=satDNF||sunDNF;
-  // DNF teams: return null for all numeric fields, only flag anyDNF
-  // The DNF card in renderLB handles their display — main leaderboard ignores them
-  const satHoles=satS&&!satDNF?satS.team.filter(x=>x!==null):[];
-  const sunHoles=sunS&&!sunDNF?sunS.team.filter(x=>x!==null):[];
+  // Guard against Firebase stripping null array values (team may be undefined or sparse)
+  const satArr=Array.isArray(satS&&satS.team)?satS.team:[];
+  const sunArr=Array.isArray(sunS&&sunS.team)?sunS.team:[];
+  const satHoles=satDNF?[]:satArr.filter(x=>x!==null&&x!==undefined);
+  const sunHoles=sunDNF?[]:sunArr.filter(x=>x!==null&&x!==undefined);
   const satFull=!satDNF&&satHoles.length===18;
   const sunFull=!sunDNF&&sunHoles.length===18;
   const satTotal=satDNF?null:(satHoles.length>0?satHoles.reduce((a,b)=>a+b,0):null);
@@ -222,6 +223,7 @@ function calcSkins(course, day){
       const scoreCourse = day==='sat' ? satC : sunC;
       const s = getScore(t.id, scoreCourse);
       if(!s||s.dnf) return;
+      if(!Array.isArray(s.team)) return;
       const v = s.team[h];
       if(v===null||v===undefined) return;
       if(low===null||v<low){ low=v; winners=[t]; tied=false; }
