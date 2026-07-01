@@ -1167,7 +1167,15 @@ function renderTT(){
     const rows=SAT[course];
     html=`<div class="card"><div class="card-title">📋 Saturday Jul 11 · ${label}</div>
       <div style="overflow-x:auto"><table class="tt-tbl"><thead><tr><th>Tee</th><th>Team</th><th>Status</th></tr></thead><tbody>`;
-    rows.forEach(r=>{
+    rows.forEach((r,idx)=>{
+      // Insert starter separator if there is a 20-min gap before this row
+      if(idx>0){
+        const prev=rows[idx-1];
+        if(timeToMin(r[0])-timeToMin(prev[0])===20){
+          const starterTime=fmt12hr(minToTime(timeToMin(prev[0])+10));
+          html+=`<tr style="background:var(--light);opacity:0.7"><td><span class="tee-badge" style="opacity:0.5">${starterTime}</span></td><td colspan="2" style="text-align:center;font-size:11px;color:var(--gray);font-style:italic">— Starter's Tee Time —</td></tr>`;
+        }
+      }
       const t1=TEAMS.find(t=>t.name===r[1]), t2=TEAMS.find(t=>t.name===r[2]);
       const s1=t1?getScore(t1.id,course):null, s2=t2?getScore(t2.id,course):null;
       const h1=s1?s1.team.filter(x=>x!==null).length:0;
@@ -1420,7 +1428,10 @@ function generateSundayData(sunCourse){
       team2:t2?{id:t2.id,name:t2.name,flight:t2.fi>=0?(flights[t2.fi]?.name||''):'Unassigned',score:t2.dnf?'DNF':(t2.satTotal??null)}:null
     });
     sunMin+=INTERVAL;
-    if(STARTER_GAPS[sunCourse].includes(i/2+1)) sunMin+=10;
+    if(STARTER_GAPS[sunCourse].includes(i/2+1)){
+      pairs.push({starter:true, time:fmt12hr(minToTime(sunMin))});
+      sunMin+=10;
+    }
   }
   return {pairs, course:sunCourse, publishedAt:new Date().toISOString()};
 }
