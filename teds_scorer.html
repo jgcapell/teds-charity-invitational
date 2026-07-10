@@ -128,6 +128,22 @@ select:focus,input:focus{border-color:var(--green);}
 .picker-clear:hover{background:#ddd;}
 .alert-info{background:#e3f2fd;color:#1565c0;border-left:4px solid #1565c0;padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:10px;}
 .alert-warn{background:#fff3e0;color:#e65100;border-left:4px solid #e65100;padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:10px;}
+/* SUNDAY CONTINGENCIES */
+.contingency-card{border:2px solid var(--red);border-radius:10px;padding:14px;background:#fff8f7;}
+.contingency-card h3{color:var(--red);font-size:14px;margin-bottom:8px;}
+.format-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;margin-left:8px;}
+.format-badge.full18{background:#e8f5e9;color:var(--green);}
+.format-badge.front9{background:#fff3e0;color:#e65100;}
+/* DRAFT TEE TIMES / DRAG-DROP */
+.draft-row{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--lite);border-radius:8px;padding:9px 11px;margin-bottom:6px;cursor:grab;}
+.draft-row.starter-row{background:#f5f5f5;opacity:0.7;cursor:default;justify-content:center;font-size:11px;color:var(--gray);font-style:italic;}
+.draft-row .drag-handle{color:var(--gray);font-size:16px;line-height:1;}
+.draft-row .draft-time{font-weight:700;color:var(--green);min-width:78px;}
+.draft-row .draft-teams{flex:1;font-size:13px;}
+.draft-row .draft-teams .t2{color:var(--gray);font-size:11px;margin-top:1px;}
+.draft-row.sortable-ghost{opacity:0.35;}
+.draft-row.sortable-drag{box-shadow:0 4px 14px rgba(0,0,0,.25);}
+.draft-status{font-size:12px;color:var(--gray);margin:8px 0;}
 .divider{border:none;border-top:1px solid var(--lite);margin:14px 0;}
 /* Autocomplete */
 .ac-wrap{position:relative;width:100%;}
@@ -302,14 +318,50 @@ select:focus,input:focus{border-color:var(--green);}
       <div class="a-grid" id="flight-cfg"></div>
       <button class="btn btn-green" onclick="saveFlights()" style="margin-top:12px">Save Flight Settings</button>
     </div>
-    <div class="card">
-      <div class="card-title">📋 Publish Tee Times</div>
-      <p style="font-size:13px;color:var(--gray);margin-bottom:12px">Saturday tee times are always published. Click below to publish generated Sunday tee times to the public leaderboard when ready.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="publishSundayTT('acc')">📤 Publish Sunday ACC Tee Times</button>
-        <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="publishSundayTT('gcc')">📤 Publish Sunday GCC Tee Times</button>
+    <div class="card contingency-card">
+      <h3>⛈️ Sunday Weather Contingencies</h3>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:10px">Both settings below are admin-only, reversible until locked in for the day, and instantly synced to the scorer app and public leaderboard.</p>
+
+      <div style="border-bottom:1px solid var(--lite);padding-bottom:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-weight:700;font-size:13px">Sunday Round Format
+            <span class="format-badge full18" id="formatBadge">Full 18</span>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--gray);margin:8px 0">If weather forces play to stop after the front 9 on Sunday, declare it here. Holes 10–18 will be disabled for entry, "vs par" will be computed against front-9 par, and the public leaderboard will show a notice.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-red" style="width:auto;padding:8px 16px;font-size:13px" onclick="declareFront9()">⚠️ Declare Sunday Shortened to Front 9</button>
+          <button class="btn btn-gray" style="width:auto;padding:8px 16px;font-size:13px" onclick="restoreFull18()">↩ Restore Full 18 Holes</button>
+        </div>
       </div>
-      <div id="tt-publish-status" style="font-size:13px;color:var(--green);margin-top:8px"></div>
+
+      <div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">Sunday Tee Time Reorder</div>
+        <p style="font-size:12px;color:var(--gray);margin-bottom:10px">Generate a draft below, drag to reshuffle groups if teams need to be moved (e.g. weather delays), then publish when ready. The public leaderboard only ever sees the published version — dragging never affects it until you click Publish.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="generateDraftTT('acc')">🔄 Generate ACC Draft</button>
+          <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="generateDraftTT('gcc')">🔄 Generate GCC Draft</button>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <div class="f1"><label>Editing Draft For</label>
+            <select id="draft-course" onchange="loadDraftTT()">
+              <option value="acc">Anniston CC</option>
+              <option value="gcc">Gadsden CC</option>
+            </select>
+          </div>
+        </div>
+        <div id="draft-tt-out"></div>
+        <div class="draft-status" id="draft-tt-status"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <button class="btn btn-gold" style="width:auto;padding:8px 16px;font-size:13px" onclick="publishSundayTT('acc')">📤 Publish Sunday ACC Tee Times</button>
+          <button class="btn btn-gold" style="width:auto;padding:8px 16px;font-size:13px" onclick="publishSundayTT('gcc')">📤 Publish Sunday GCC Tee Times</button>
+        </div>
+        <div id="tt-publish-status" style="font-size:13px;color:var(--green);margin-top:8px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;border-top:1px solid var(--lite);padding-top:10px">
+          <button class="btn btn-gray" style="width:auto;padding:8px 16px;font-size:13px" onclick="exportSundayTeeTimesXLSX()">⬇ Download Sunday Tee Times (.xlsx)</button>
+        </div>
+        <p style="font-size:11px;color:var(--gray);margin-top:4px">Exports the current draft order if one exists (including any manual reordering), otherwise generates fresh from current scores &amp; flights. One tab per course.</p>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">🏌️ Saturday Scores by Course</div>
@@ -355,6 +407,8 @@ select:focus,input:focus{border-color:var(--green);}
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 
 
@@ -366,6 +420,11 @@ const PLAYERS = ["Aaron Gregerson", "Adam Benefiel", "Adam Sanders", "Aidan Elli
 const GCC_PAR3=[2,6,13,15];
 const ACC_TOTAL_PAR=70;
 const GCC_TOTAL_PAR=71;
+const ACC_FRONT9_PAR=ACC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
+const GCC_FRONT9_PAR=GCC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
+// ── Tournament-wide settings (Firebase-synced, not just localStorage) ──
+// settings.sunday_format: 'full18' (default) | 'front9' — set by admin if Sunday is weather-shortened
+let _settings={sunday_format:'full18'};
 // ── Local storage (PIN, flights only) ────────────────────────
 function store(k,v){try{localStorage.setItem('tci2026_'+k,JSON.stringify(v));}catch(e){}}
 function load(k,def=null){try{const v=localStorage.getItem('tci2026_'+k);return v!==null?JSON.parse(v):def;}catch(e){return def;}}
@@ -418,7 +477,15 @@ function getSatCourse(tid){
 }
 function getSunCourse(tid){ return getSatCourse(tid)==='acc'?'gcc':'acc'; }
 function getSatPar(tid){ return getSatCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
-function getSunPar(tid){ return getSunCourse(tid)==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR; }
+function getSunPar(tid){
+  const c=getSunCourse(tid);
+  if(_settings.sunday_format==='front9') return c==='acc'?ACC_FRONT9_PAR:GCC_FRONT9_PAR;
+  return c==='acc'?ACC_TOTAL_PAR:GCC_TOTAL_PAR;
+}
+// How many holes make a "complete" round for this team on this course (handles Sunday front-9 weather shortening)
+function getHolesNeeded(tid,course){
+  return (course===getSunCourse(tid) && _settings.sunday_format==='front9') ? 9 : 18;
+}
 
 function getTeamStats(tid){
   const satC=getSatCourse(tid), sunC=getSunCourse(tid);
@@ -431,8 +498,10 @@ function getTeamStats(tid){
   const sunArr=Array.isArray(sunS&&sunS.team)?sunS.team:[];
   const satHoles=satDNF?[]:satArr.filter(x=>x!==null&&x!==undefined);
   const sunHoles=sunDNF?[]:sunArr.filter(x=>x!==null&&x!==undefined);
+  // Sunday round counts as "full" at 9 holes when weather has shortened it
+  const sunHolesNeeded=_settings.sunday_format==='front9'?9:18;
   const satFull=!satDNF&&satHoles.length===18;
-  const sunFull=!sunDNF&&sunHoles.length===18;
+  const sunFull=!sunDNF&&sunHoles.length===sunHolesNeeded;
   const satTotal=satDNF?null:(satHoles.length>0?satHoles.reduce((a,b)=>a+b,0):null);
   const sunTotal=sunDNF?null:(sunHoles.length>0?sunHoles.reduce((a,b)=>a+b,0):null);
   const satPar=getSatPar(tid), sunPar=getSunPar(tid);
@@ -452,6 +521,7 @@ function getTeamStats(tid){
     sunHolesPlayed:sunHoles.length
   };
 }
+
 
 function getFlights(){return load('flights',[
   {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
@@ -565,9 +635,12 @@ function renderLB(){
   const data=allData.filter(t=>t.s.anyDNF!==true);
   const anyScores=data.some(t=>t.s.satTotal!==null);
   let html='';
+  if(_settings.sunday_format==='front9'){
+    html+='<div class="alert-warn" style="font-weight:700">⚠️ Final Round: Front 9 (Weather) — Sunday scoring and "vs par" reflect 9 holes only</div>';
+  }
 
   if(!anyScores){
-    html='<div class="empty"><div class="ico"><img src="data:image/png;base64,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" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)"></div><h2>Scoring In Progress</h2><p>Live results will appear here as scores are submitted.</p></div>';
+    html+='<div class="empty"><div class="ico"><img src="data:image/png;base64,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" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)"></div><h2>Scoring In Progress</h2><p>Live results will appear here as scores are submitted.</p></div>';
     document.getElementById('lb-out').innerHTML=html;
     return;
   }
@@ -681,7 +754,8 @@ function updateTeamBadge(tid, course){
   const ex = getScore(tid, course);
   const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
   const isDNF = ex && ex.dnf === true;
-  const badge = isDNF?'⛔ ':(holes===18?'✅ ':(holes>0?'⏳ ':''));
+  const holesNeeded = getHolesNeeded(tid, course);
+  const badge = isDNF?'⛔ ':(holes===holesNeeded?'✅ ':(holes>0?'⏳ ':''));
   // Find the team item in the list and update its content prefix
   const items = document.querySelectorAll('.team-item');
   items.forEach(item=>{
@@ -720,7 +794,8 @@ function filterTeams(){
     const ex = getScore(t.id, scoreCourse);
     const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
     const isDNF = ex && ex.dnf === true;
-    const badge = isDNF?'⛔ ':(holes===18?'✅ ':(holes>0?'⏳ ':''));
+    const holesNeeded = getHolesNeeded(t.id, scoreCourse);
+    const badge = isDNF?'⛔ ':(holes===holesNeeded?'✅ ':(holes>0?'⏳ ':''));
     const satTT = t.acc_tee_time||t.gcc_tee_time;
     const ttStr = satTT ? fmt12hr(satTT.substring(0,5)) : '–';
     return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${scoreCourse.toUpperCase()} · Sat tee: ${ttStr}</div></div>`;
@@ -806,12 +881,35 @@ function renderCard(){
   const isDNF = ex && ex.dnf === true;
   const dnfBanner = document.getElementById('dnfBanner');
   if(dnfBanner) dnfBanner.style.display = isDNF ? 'block' : 'none';
-  // Lock all hole inputs if DNF
+  // If Sunday is shortened to front 9, holes 10–18 are disabled for entry (not part of the round)
+  const isShortenedSunday = day==='sun' && _settings.sunday_format==='front9';
+  // Lock all hole inputs if DNF; separately gray out holes 10-18 on a shortened Sunday
   document.querySelectorAll('.h-inp').forEach(inp=>{
-    inp.disabled = isDNF;
-    inp.style.opacity = isDNF ? '0.4' : '1';
-    inp.style.cursor = isDNF ? 'not-allowed' : '';
+    const holeIdx = parseInt(inp.id.replace('h',''));
+    const isBackNineOnShortSun = isShortenedSunday && holeIdx>=9;
+    inp.disabled = isDNF || isBackNineOnShortSun;
+    inp.style.opacity = (isDNF||isBackNineOnShortSun) ? '0.4' : '1';
+    inp.style.cursor = (isDNF||isBackNineOnShortSun) ? 'not-allowed' : '';
   });
+  // Reflect the same disabled state on the clickable cell wrapper so openPicker doesn't fire
+  document.querySelectorAll('.hole-cell').forEach(cell=>{
+    const inp=cell.querySelector('.h-inp');
+    if(!inp) return;
+    const holeIdx = parseInt(inp.id.replace('h',''));
+    const isBackNineOnShortSun = isShortenedSunday && holeIdx>=9;
+    if(isBackNineOnShortSun && !isDNF){
+      cell.style.pointerEvents='none';
+      cell.style.opacity='0.5';
+    } else {
+      cell.style.pointerEvents='';
+      cell.style.opacity='';
+    }
+  });
+  // Note banner for shortened Sunday round
+  if(isShortenedSunday && !isDNF){
+    const noteEl=document.getElementById('fmtNote');
+    if(noteEl) noteEl.textContent = '📋 '+fmtLabel+'  ·  ⚠️ Sunday shortened to FRONT 9 (weather) — holes 10–18 disabled';
+  }
   const btnSave = document.getElementById('btnSaveScore');
   const btnDNF = document.getElementById('btnMarkDNF');
   if(btnSave) btnSave.style.display = isDNF ? 'none' : '';
@@ -863,18 +961,24 @@ function getAllHoles(){
 function updateSummary(){
   const scoreCourse=getScoreCourse();
   const par=scoreCourse==='acc'?ACC_PAR:GCC_PAR;
-  const parTotal=par.reduce((a,b)=>a+b,0);
+  const day=document.getElementById('sc-day').value;
+  const isShortenedSunday = day==='sun' && _settings.sunday_format==='front9';
+  const holesNeeded = isShortenedSunday ? 9 : 18;
+  const parTotal = isShortenedSunday
+    ? par.slice(0,9).reduce((a,b)=>a+b,0)
+    : par.reduce((a,b)=>a+b,0);
   const team=getAllHoles();
   const front=team.slice(0,9).filter(x=>x!==null);
   const back=team.slice(9).filter(x=>x!==null);
   const ft=front.reduce((a,b)=>a+b,0);
   const bt=back.reduce((a,b)=>a+b,0);
-  const tot=team.filter(x=>x!==null).reduce((a,b)=>a+b,0);
-  const full=team.filter(x=>x!==null).length===18;
+  const relevant = isShortenedSunday ? team.slice(0,9) : team;
+  const tot=relevant.filter(x=>x!==null).reduce((a,b)=>a+b,0);
+  const full=relevant.filter(x=>x!==null).length===holesNeeded;
   const vp=full?tot-parTotal:null;
   document.getElementById('s-front').textContent=front.length?ft:'–';
-  document.getElementById('s-back').textContent=back.length?bt:'–';
-  document.getElementById('s-total').textContent=team.filter(x=>x!==null).length?tot:'–';
+  document.getElementById('s-back').textContent=(back.length&&!isShortenedSunday)?bt:'–';
+  document.getElementById('s-total').textContent=relevant.filter(x=>x!==null).length?tot:'–';
   const vpEl=document.getElementById('s-par');
   if(vp!==null){vpEl.textContent=vp===0?'E':vp>0?'+'+vp:vp;vpEl.className='sum-val'+(vp<0?' red':'');}
   else{vpEl.textContent='–';vpEl.className='sum-val';}
@@ -896,8 +1000,12 @@ function markDNF(){
 function saveScore(){
   if(!curTeam){showToast('Select a team first');return;}
   const team=getAllHoles();
-  const full=team.filter(x=>x!==null).length===18;
-  if(!full&&!confirm('Not all 18 holes entered. Save partial score?')) return;
+  const day=document.getElementById('sc-day').value;
+  const isShortenedSunday = day==='sun' && _settings.sunday_format==='front9';
+  const holesNeeded = isShortenedSunday ? 9 : 18;
+  const relevant = isShortenedSunday ? team.slice(0,9) : team;
+  const full=relevant.filter(x=>x!==null).length===holesNeeded;
+  if(!full&&!confirm('Not all '+holesNeeded+' holes entered. Save partial score?')) return;
   const scoreCourse=getScoreCourse();
   saveScoreData(curTeam.id, scoreCourse, {team, dnf:false, photo:photoData, savedAt:new Date().toISOString()});
   // Reseed buffer from saved data so switching halves stays consistent
@@ -1309,6 +1417,16 @@ function renderAdmin(){
   });
   document.getElementById('flight-cfg').innerHTML=html;
 
+  // Sunday format badge
+  const badge=document.getElementById('formatBadge');
+  if(badge){
+    const isFront9=_settings.sunday_format==='front9';
+    badge.textContent=isFront9?'Front 9 (Weather)':'Full 18';
+    badge.className='format-badge '+(isFront9?'front9':'full18');
+  }
+  // Load draft tee times for whichever course is selected
+  loadDraftTT();
+
   // Status
   let accDone=0,gccDone=0;
   let sHtml='<div style="overflow-x:auto"><table class="tt-tbl"><thead><tr><th>Team</th><th>ACC</th><th>GCC</th></tr></thead><tbody>';
@@ -1329,6 +1447,17 @@ function renderAdmin(){
       <span style="color:var(--green)">✅ ACC: ${accDone}/152</span>
       <span style="color:var(--green)">✅ GCC: ${gccDone}/152</span>
     </div>`+sHtml;
+}
+
+function declareFront9(){
+  if(!confirm('Declare Sunday shortened to FRONT 9 due to weather?\n\nThis will:\n• Disable holes 10–18 for Sunday score entry\n• Compute "vs par" using front-9 par for Sunday rounds\n• Show a notice on the public leaderboard\n\nThis is reversible until scores make it ambiguous. Proceed?')) return;
+  db.ref('settings/sunday_format').set('front9');
+  showToast('⚠️ Sunday declared FRONT 9 (weather)');
+}
+function restoreFull18(){
+  if(!confirm('Restore Sunday to the standard FULL 18 holes?')) return;
+  db.ref('settings/sunday_format').set('full18');
+  showToast('↩ Sunday restored to full 18 holes');
 }
 
 function saveFlights(){
@@ -1402,12 +1531,15 @@ function clearAll(){
 function publishSundayTT(course){
   const label = course==='acc'?'Anniston CC':'Gadsden CC';
   if(!confirm('Publish Sunday '+label+' tee times to the public leaderboard?')) return;
-  // Generate the tee time data and save to Firebase
-  const ttData = generateSundayData(course);
-  db.ref('published_tt/sun_'+course).set(ttData);
-  document.getElementById('tt-publish-status').textContent =
-    '✅ Sunday '+label+' tee times published! ('+ttData.pairs.length+' groups)';
-  showToast('📤 Sunday '+label+' tee times published');
+  // Prefer the admin-edited draft (may have been manually reordered); fall back to a fresh generation
+  db.ref('sunday_teetimes_draft/'+course).once('value').then(snap=>{
+    const draft = snap.val();
+    const ttData = draft && draft.pairs ? {...draft, publishedAt:new Date().toISOString()} : generateSundayData(course);
+    db.ref('published_tt/sun_'+course).set(ttData);
+    document.getElementById('tt-publish-status').textContent =
+      '✅ Sunday '+label+' tee times published! ('+ttData.pairs.filter(p=>!p.starter).length+' groups)';
+    showToast('📤 Sunday '+label+' tee times published');
+  });
 }
 
 function generateSundayData(sunCourse){
@@ -1451,6 +1583,155 @@ function generateSundayData(sunCourse){
     }
   }
   return {pairs, course:sunCourse, publishedAt:new Date().toISOString()};
+}
+
+// ═══════════════════════════════════════════════
+// DRAFT SUNDAY TEE TIMES (admin drag-and-drop reorder)
+// ═══════════════════════════════════════════════
+let _draftSortable=null;
+
+function generateDraftTT(course){
+  const label = course==='acc'?'Anniston CC':'Gadsden CC';
+  if(!confirm('Generate a fresh Sunday '+label+' draft from current Saturday scores & flights?\n\nThis will overwrite any existing draft reordering for this course.')) return;
+  const ttData = generateSundayData(course);
+  db.ref('sunday_teetimes_draft/'+course).set(ttData).then(()=>{
+    document.getElementById('draft-course').value=course;
+    loadDraftTT();
+    showToast('🔄 '+label+' draft generated — drag to reorder');
+  });
+}
+
+function loadDraftTT(){
+  const course=document.getElementById('draft-course')?document.getElementById('draft-course').value:'acc';
+  db.ref('sunday_teetimes_draft/'+course).once('value').then(snap=>{
+    renderDraftList(course, snap.val());
+  });
+}
+
+function renderDraftList(course, data){
+  const out=document.getElementById('draft-tt-out');
+  const status=document.getElementById('draft-tt-status');
+  if(!out) return;
+  if(!data || !data.pairs || !data.pairs.length){
+    out.innerHTML='<div style="color:var(--gray);padding:12px;font-size:13px">No draft yet — click "Generate Draft" above to build one from current Saturday scores.</div>';
+    if(status) status.textContent='';
+    return;
+  }
+  // Flatten pairs into individual draggable team rows; starter gaps are recalculated on save
+  // based on position, so we don't render them as draggable items — just track where they were.
+  const teamRows=[];
+  data.pairs.forEach(p=>{
+    if(p.starter) return;
+    teamRows.push(p.team1);
+    if(p.team2) teamRows.push(p.team2);
+  });
+  let html='';
+  teamRows.forEach(t=>{
+    html+=`<div class="draft-row" data-team-id="${t.id}">
+      <span class="drag-handle">⠿</span>
+      <div class="draft-teams">
+        <div style="font-weight:600">${t.name}</div>
+        <div class="t2">${t.flight||'Unassigned'} · Sat: ${t.score===null||t.score===undefined?'–':t.score}</div>
+      </div>
+    </div>`;
+  });
+  out.innerHTML=html;
+  if(status) status.textContent=teamRows.length+' teams · drag any row to reorder, then Publish when ready';
+
+  // Wire up drag-and-drop
+  if(_draftSortable){ _draftSortable.destroy(); _draftSortable=null; }
+  if(window.Sortable){
+    _draftSortable=Sortable.create(out,{
+      animation:150,
+      handle:'.drag-handle',
+      ghostClass:'sortable-ghost',
+      dragClass:'sortable-drag',
+      onEnd:()=>saveDraftOrder(course)
+    });
+  }
+}
+
+function saveDraftOrder(course){
+  // Rebuild pairs from the current DOM order, recomputing tee times & starter gaps from scratch
+  const out=document.getElementById('draft-tt-out');
+  if(!out) return;
+  const rows=[...out.querySelectorAll('.draft-row')];
+  db.ref('sunday_teetimes_draft/'+course).once('value').then(snap=>{
+    const existing=snap.val();
+    if(!existing||!existing.pairs) return;
+    // Build a lookup of team data (name/flight/score) from the existing draft, keyed by id
+    const lookup={};
+    existing.pairs.forEach(p=>{
+      if(p.starter) return;
+      lookup[p.team1.id]=p.team1;
+      if(p.team2) lookup[p.team2.id]=p.team2;
+    });
+    const orderedTeams=rows.map(r=>lookup[r.getAttribute('data-team-id')]).filter(Boolean);
+    const firstSatTime=SAT[course][0][0];
+    let sunMin=timeToMin(firstSatTime);
+    const INTERVAL=10;
+    const pairs=[];
+    for(let i=0;i<orderedTeams.length;i+=2){
+      const t1=orderedTeams[i], t2=orderedTeams[i+1];
+      pairs.push({ time:fmt12hr(minToTime(sunMin)), team1:t1, team2:t2||null });
+      sunMin+=INTERVAL;
+      if(STARTER_GAPS[course].includes(i/2+1)){
+        pairs.push({starter:true, time:fmt12hr(minToTime(sunMin))});
+        sunMin+=10;
+      }
+    }
+    const ttData={pairs, course, publishedAt:new Date().toISOString()};
+    db.ref('sunday_teetimes_draft/'+course).set(ttData).then(()=>{
+      const status=document.getElementById('draft-tt-status');
+      if(status) status.textContent='✅ Order saved to draft — '+orderedTeams.length+' teams (not yet published)';
+      showToast('Draft order saved');
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// EXPORT SUNDAY TEE TIMES TO EXCEL
+// ═══════════════════════════════════════════════
+function exportSundayTeeTimesXLSX(){
+  if(!window.XLSX){ showToast('⚠️ Excel export library not loaded — check connection'); return; }
+  Promise.all([
+    db.ref('sunday_teetimes_draft/acc').once('value'),
+    db.ref('sunday_teetimes_draft/gcc').once('value')
+  ]).then(([accSnap, gccSnap])=>{
+    const accData = accSnap.val() && accSnap.val().pairs ? accSnap.val() : generateSundayData('acc');
+    const gccData = gccSnap.val() && gccSnap.val().pairs ? gccSnap.val() : generateSundayData('gcc');
+
+    const buildSheetRows=(data)=>{
+      const rows=[['Tee Time','Team 1','Flight 1','Sat Score 1','Team 2','Flight 2','Sat Score 2']];
+      data.pairs.forEach(p=>{
+        if(p.starter){
+          rows.push([p.time,'— Starter\'s Tee Time —','','','','','']);
+          return;
+        }
+        rows.push([
+          p.time,
+          p.team1.name, p.team1.flight||'Unassigned', p.team1.score===null||p.team1.score===undefined?'':p.team1.score,
+          p.team2?p.team2.name:'', p.team2?(p.team2.flight||'Unassigned'):'', p.team2&&p.team2.score!==null&&p.team2.score!==undefined?p.team2.score:''
+        ]);
+      });
+      return rows;
+    };
+
+    const wb=XLSX.utils.book_new();
+    const accWs=XLSX.utils.aoa_to_sheet(buildSheetRows(accData));
+    accWs['!cols']=[{wch:10},{wch:28},{wch:16},{wch:11},{wch:28},{wch:16},{wch:11}];
+    XLSX.utils.book_append_sheet(wb, accWs, 'Sunday ACC');
+
+    const gccWs=XLSX.utils.aoa_to_sheet(buildSheetRows(gccData));
+    gccWs['!cols']=[{wch:10},{wch:28},{wch:16},{wch:11},{wch:28},{wch:16},{wch:11}];
+    XLSX.utils.book_append_sheet(wb, gccWs, 'Sunday GCC');
+
+    XLSX.writeFile(wb, 'TCI_2026_Sunday_TeeTimes.xlsx');
+    showToast('⬇ Sunday tee times downloaded');
+  }).catch(e=>{
+    console.error('Export error:', e);
+    showToast('⚠️ Export failed — check connection and try again');
+  });
 }
 
 // ═══════════════════════════════════════════════
@@ -1802,6 +2083,14 @@ function initApp(){
   curCourse='acc';
   filterTeams(); // populate team list immediately before Firebase loads
   showToast('🔄 Loading scores from server…');
+  // Load & listen for tournament-wide settings (Sunday format flag) — shared across scorer + leaderboard
+  db.ref('settings').on('value',snap=>{
+    const s=snap.val()||{};
+    _settings.sunday_format = s.sunday_format || 'full18';
+    renderLB();
+    if(document.getElementById('v-admin')&&document.getElementById('v-admin').classList.contains('on')) renderAdmin();
+    if(curTeam) renderCard();
+  });
   // Load all scores from Firebase into local cache, then render
   db.ref('scores').once('value').then(snap=>{
     const data=snap.val()||{};
