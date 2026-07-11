@@ -1971,7 +1971,9 @@ function buildAC(inputId, dropId, action){
     const matches = PLAYERS.filter(p=>p.toLowerCase().includes(q)).slice(0,12);
     if(!matches.length){ drop.classList.remove('show'); return; }
     drop.innerHTML = matches.map(p=>{
-      const safe = p.replace(/'/g,"&#39;");
+      // Escape both quote types — an unescaped " inside an HTML attribute value
+      // (e.g. Clay "Bumper" Jones) truncates the attribute and breaks the click handler
+      const safe = p.replace(/'/g,"&#39;").replace(/"/g,"&quot;");
       return `<div class="ac-item" onmousedown="event.preventDefault();acPick('${inputId}','${dropId}','${safe}','${action}')">${p}</div>`;
     }).join('');
     drop.classList.add('show');
