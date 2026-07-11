@@ -535,8 +535,10 @@ function getTeamFlight(tid){
   const flights=getFlights();
   const satC=getSatCourse(tid);
   const s=getScore(tid,satC);
-  const satScore=s&&s.team.filter(x=>x!==null).length===18
-    ?s.team.filter(x=>x!==null).reduce((a,b)=>a+b,0):null;
+  const isDNF=!!(s&&s.dnf===true);
+  const satArr=Array.isArray(s&&s.team)?s.team:[];
+  const validHoles=isDNF?[]:satArr.filter(x=>x!==null&&x!==undefined);
+  const satScore=(!isDNF&&validHoles.length===18)?validHoles.reduce((a,b)=>a+b,0):null;
   if(satScore===null)return -1;
   for(let i=0;i<flights.length;i++){
     if(flights[i].course===satC&&satScore>=flights[i].min&&satScore<=flights[i].max)return i;
@@ -752,8 +754,9 @@ function onCourseChange(){
 function updateTeamBadge(tid, course){
   // Update just this one team item's badge without rebuilding the list
   const ex = getScore(tid, course);
-  const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
   const isDNF = ex && ex.dnf === true;
+  const exArr = Array.isArray(ex&&ex.team)?ex.team:[];
+  const holes = isDNF?0:exArr.filter(x=>x!==null).length;
   const holesNeeded = getHolesNeeded(tid, course);
   const badge = isDNF?'⛔ ':(holes===holesNeeded?'✅ ':(holes>0?'⏳ ':''));
   // Find the team item in the list and update its content prefix
@@ -792,8 +795,9 @@ function filterTeams(){
     const satC = t.acc_tee_time ? 'acc' : 'gcc';
     const scoreCourse = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
     const ex = getScore(t.id, scoreCourse);
-    const holes = ex ? ex.team.filter(x=>x!==null).length : 0;
     const isDNF = ex && ex.dnf === true;
+    const exArr = Array.isArray(ex&&ex.team)?ex.team:[];
+    const holes = isDNF?0:exArr.filter(x=>x!==null).length;
     const holesNeeded = getHolesNeeded(t.id, scoreCourse);
     const badge = isDNF?'⛔ ':(holes===holesNeeded?'✅ ':(holes>0?'⏳ ':''));
     const satTT = t.acc_tee_time||t.gcc_tee_time;
@@ -847,7 +851,7 @@ function renderCard(){
   const par3 = scoreCourse==='acc'?ACC_PAR3:GCC_PAR3;
   const ex = getScore(curTeam.id, scoreCourse);
   // Merge saved score with session buffer (_buf takes priority)
-  const base = ex ? [...ex.team] : Array(18).fill(null);
+  const base = (ex && Array.isArray(ex.team)) ? [...ex.team] : Array(18).fill(null);
   const scores = base.map((v,h)=> _buf[h]!==undefined ? _buf[h] : v);
   const ttKey = curCourse==='acc'?'acc_tee_time':'gcc_tee_time';
   const ttStr = curTeam[ttKey] ? curTeam[ttKey].substring(0,5) : 'TBD';
@@ -951,7 +955,7 @@ function getAllHoles(){
   // (picker updates _buf directly, no DOM flush needed)
   const scoreCourse=getScoreCourse();
   const ex=getScore(curTeam.id,scoreCourse);
-  const team=ex ? [...ex.team] : Array(18).fill(null);
+  const team=(ex && Array.isArray(ex.team)) ? [...ex.team] : Array(18).fill(null);
   for(let h=0;h<18;h++){
     if(_buf[h]!==undefined) team[h]=_buf[h];
   }
@@ -1303,8 +1307,10 @@ function renderTT(){
       }
       const t1=TEAMS.find(t=>t.name===r[1]), t2=TEAMS.find(t=>t.name===r[2]);
       const s1=t1?getScore(t1.id,course):null, s2=t2?getScore(t2.id,course):null;
-      const h1=s1?s1.team.filter(x=>x!==null).length:0;
-      const h2=s2?s2.team.filter(x=>x!==null).length:0;
+      const s1Arr=Array.isArray(s1&&s1.team)?s1.team:[];
+      const s2Arr=Array.isArray(s2&&s2.team)?s2.team:[];
+      const h1=(s1&&s1.dnf===true)?0:s1Arr.filter(x=>x!==null).length;
+      const h2=(s2&&s2.dnf===true)?0:s2Arr.filter(x=>x!==null).length;
       const pill=(h)=>h===18?'<span class="status-pill s-done">✅ Done</span>':h>0?`<span class="status-pill s-part">⏳ ${h}/18</span>`:'<span class="status-pill s-none">–</span>';
       html+=`<tr class="fs"><td rowspan="2"><span class="tee-badge">${fmt12hr(r[0])}</span></td><td>${r[1]}</td><td>${pill(h1)}</td></tr>
              <tr><td>${r[2]}</td><td>${pill(h2)}</td></tr>`;
@@ -1432,12 +1438,14 @@ function renderAdmin(){
   let sHtml='<div style="overflow-x:auto"><table class="tt-tbl"><thead><tr><th>Team</th><th>ACC</th><th>GCC</th></tr></thead><tbody>';
   TEAMS.forEach(t=>{
     const a=getScore(t.id,'acc'),g=getScore(t.id,'gcc');
-    const ah=a?a.team.filter(x=>x!==null).length:0;
-    const gh=g?g.team.filter(x=>x!==null).length:0;
+    const aArr=Array.isArray(a&&a.team)?a.team:[];
+    const gArr=Array.isArray(g&&g.team)?g.team:[];
+    const ah=(a&&a.dnf===true)?0:aArr.filter(x=>x!==null).length;
+    const gh=(g&&g.dnf===true)?0:gArr.filter(x=>x!==null).length;
     if(ah===18)accDone++;if(gh===18)gccDone++;
-    if(ah>0||gh>0){
-      const pa=(ah>0)?`<span class="status-pill ${ah===18?'s-done':'s-part'}">${ah}/18</span>`:'–';
-      const pg=(gh>0)?`<span class="status-pill ${gh===18?'s-done':'s-part'}">${gh}/18</span>`:'–';
+    if(ah>0||gh>0||(a&&a.dnf===true)||(g&&g.dnf===true)){
+      const pa=(a&&a.dnf===true)?'<span class="status-pill" style="background:#ffe0e0;color:#c0392b">⛔ DNF</span>':(ah>0)?`<span class="status-pill ${ah===18?'s-done':'s-part'}">${ah}/18</span>`:'–';
+      const pg=(g&&g.dnf===true)?'<span class="status-pill" style="background:#ffe0e0;color:#c0392b">⛔ DNF</span>':(gh>0)?`<span class="status-pill ${gh===18?'s-done':'s-part'}">${gh}/18</span>`:'–';
       sHtml+=`<tr><td style="font-size:12px">${t.name}</td><td>${pa}</td><td>${pg}</td></tr>`;
     }
   });
