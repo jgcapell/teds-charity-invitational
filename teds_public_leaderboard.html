@@ -127,12 +127,12 @@ const _specials={};
 function load(k,def=null){try{const v=localStorage.getItem('tci2026_'+k);return v!==null?JSON.parse(v):def;}catch(e){return def;}}
 function getScore(tid,course){return _scores[tid+'_'+course]||null;}
 let _flights=[
-  {name:'Championship',color:'#1a3a1a',min:0,max:999},
-  {name:'Flight 1',color:'#2d6a2d',min:0,max:999},
-  {name:'Flight 2',color:'#c9a227',min:0,max:999},
-  {name:'Flight 3',color:'#8b4513',min:0,max:999},
-  {name:'Flight 4',color:'#1a4a6a',min:0,max:999},
-  {name:'Flight 5',color:'#6a1a4a',min:0,max:999}
+  {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
+  {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
+  {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
+  {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
+  {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
+  {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
 ];
 function getFlights(){return _flights;}
 // getTeamFlight defined below
@@ -187,14 +187,6 @@ function getTeamStats(tid){
 }
 
 
-function getFlights(){return load('flights',[
-  {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
-  {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
-  {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
-  {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
-  {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
-  {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
-]);}
 function getTeamFlight(tid){
   const flights=getFlights();
   const satC=getSatCourse(tid);
