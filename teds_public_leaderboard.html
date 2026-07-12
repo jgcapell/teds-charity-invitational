@@ -413,7 +413,7 @@ function renderLB(){
     const partial = satNum!==null && !t.s.satFull
       ? '<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>' : '';
     const r1 = isDNF && t.s.satDNF ? '<span style="color:#c0392b">DNF</span>' : (satNum!==null ? satNum+partial : '–');
-    const liveThru = (!isDNF && sunNum===null && t.s.sunHolesPlayed>0)
+    const liveThru = (!isDNF && !t.s.sunFull && t.s.sunHolesPlayed>0)
       ? '<span style="background:#fff3e0;color:#e65100;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">Thru '+t.s.sunHolesPlayed+'</span>' : null;
     const r2 = isDNF && t.s.sunDNF ? '<span style="color:#c0392b">DNF</span>' : (liveThru || (sunNum!==null ? sunNum : '–'));
     const tot = isDNF ? '<span style="color:#c0392b;font-weight:700">DNF</span>' : (totNum!==null ? totNum : '–');
