@@ -423,6 +423,22 @@ const GCC_TOTAL_PAR=71;
 const ACC_FRONT9_PAR=ACC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
 const GCC_FRONT9_PAR=GCC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
 // ── Tournament-wide settings (Firebase-synced, not just localStorage) ──
+// Cache of Sunday tee time draft/published data, keyed by course ('acc'/'gcc') — used to order the Sunday score-entry team list
+let _sundayTT={acc:null,gcc:null};
+// Build a map of teamId -> {order, timeStr} from a sunday_teetimes_draft pairs array (skips starter gap rows).
+// 'order' is the pair's position in the array, which is already in correct tee-time sequence (used for sorting since
+// the stored 'time' is a pre-formatted 12hr string like "8:10 AM" that doesn't sort correctly across AM/PM).
+function getSundayTeeMap(course){
+  const draft=_sundayTT[course];
+  const map={};
+  if(!draft||!Array.isArray(draft.pairs)) return map;
+  draft.pairs.forEach((p,idx)=>{
+    if(p.starter) return;
+    if(p.team1&&p.team1.id) map[p.team1.id]={order:idx,timeStr:p.time};
+    if(p.team2&&p.team2.id) map[p.team2.id]={order:idx,timeStr:p.time};
+  });
+  return map;
+}
 // settings.sunday_format: 'full18' (default) | 'front9' — set by admin if Sunday is weather-shortened
 let _settings={sunday_format:'full18'};
 // ── Local storage (PIN, flights only) ────────────────────────
@@ -459,15 +475,16 @@ function saveSpecialsForKey(key,data){
   db.ref('specials/'+key).set(data);
 }
 
-// ── Flights (local) ───────────────────────────────────────────
-function getFlights(){return load('flights',[
+// ── Flights (synced from Firebase — see db.ref('flights').on('value',...) listener in initApp) ─
+let _flights=[
   {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
   {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
   {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
   {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
   {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
   {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
-]);}
+];
+function getFlights(){return _flights;}
 // getTeamFlight defined below with DNF/array guard
 // ── Team helpers ──────────────────────────────────────────────
 function getSatCourse(tid){
@@ -523,14 +540,6 @@ function getTeamStats(tid){
 }
 
 
-function getFlights(){return load('flights',[
-  {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
-  {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
-  {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
-  {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
-  {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
-  {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
-]);}
 function getTeamFlight(tid){
   const flights=getFlights();
   const satC=getSatCourse(tid);
@@ -778,12 +787,20 @@ function filterTeams(){
   curCourse = course;
   const q = document.getElementById('teamQ').value.toLowerCase();
 
+  // On Sunday, prefer ordering by the actual Sunday tee time draft/publish data for this course, if it exists.
+  // Teams not found in the map (e.g. draft not yet generated) fall back to Saturday-time-based ordering.
+  const sunMap = day==='sun' ? getSundayTeeMap(course) : {};
+
   const filtered = TEAMS.filter(t=>{
     // Which course does this team play today?
     const satC = t.acc_tee_time ? 'acc' : 'gcc';
     const todayCourse = day==='sat' ? satC : (satC==='acc'?'gcc':'acc');
     return todayCourse===course && t.name.toLowerCase().includes(q);
   }).sort((a,b)=>{
+    const sa = sunMap[a.id], sb = sunMap[b.id];
+    if(sa&&sb) return sa.order-sb.order;
+    if(sa) return -1; if(sb) return 1;
+    // Fallback: Saturday tee time order (used on Saturday, or on Sunday when no draft exists yet)
     const ta=a.acc_tee_time||a.gcc_tee_time;
     const tb=b.acc_tee_time||b.gcc_tee_time;
     if(ta&&tb) return ta.localeCompare(tb);
@@ -800,9 +817,16 @@ function filterTeams(){
     const holes = isDNF?0:exArr.filter(x=>x!==null).length;
     const holesNeeded = getHolesNeeded(t.id, scoreCourse);
     const badge = isDNF?'⛔ ':(holes===holesNeeded?'✅ ':(holes>0?'⏳ ':''));
-    const satTT = t.acc_tee_time||t.gcc_tee_time;
-    const ttStr = satTT ? fmt12hr(satTT.substring(0,5)) : '–';
-    return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${scoreCourse.toUpperCase()} · Sat tee: ${ttStr}</div></div>`;
+    const sunTee = sunMap[t.id];
+    let ttLabel;
+    if(sunTee){
+      ttLabel = 'Sun tee: '+sunTee.timeStr;
+    } else {
+      const satTT = t.acc_tee_time||t.gcc_tee_time;
+      const ttStr = satTT ? fmt12hr(satTT.substring(0,5)) : '–';
+      ttLabel = (day==='sun' ? 'Sat tee (draft pending): ' : 'Sat tee: ')+ttStr;
+    }
+    return `<div class="team-item" onclick="selectTeam('${t.id}')">${badge}${t.name}<div class="tt">${scoreCourse.toUpperCase()} · ${ttLabel}</div></div>`;
   }).join('');
 }
 
@@ -2100,6 +2124,32 @@ function initApp(){
     renderLB();
     if(document.getElementById('v-admin')&&document.getElementById('v-admin').classList.contains('on')) renderAdmin();
     if(curTeam) renderCard();
+  });
+  // Load & listen for flight configuration — shared across all devices (fixes flights not appearing on devices
+  // that didn't personally click "Save Flight Settings", since this used to be read from localStorage)
+  const FLIGHT_DEFAULTS=[
+    {name:'Championship',color:'#1a3a1a',min:0,max:999,course:'gcc'},
+    {name:'Flight 1',color:'#2d6a2d',min:0,max:999,course:'gcc'},
+    {name:'Flight 2',color:'#c9a227',min:0,max:999,course:'gcc'},
+    {name:'Flight 3',color:'#8b4513',min:0,max:999,course:'acc'},
+    {name:'Flight 4',color:'#1a4a6a',min:0,max:999,course:'acc'},
+    {name:'Flight 5',color:'#6a1a4a',min:0,max:999,course:'acc'}
+  ];
+  db.ref('flights').on('value',snap=>{
+    const f=snap.val();
+    _flights = Array.isArray(f)&&f.length ? f : FLIGHT_DEFAULTS;
+    renderLB();
+    if(document.getElementById('v-score')&&document.getElementById('v-score').classList.contains('on')) filterTeams();
+    if(document.getElementById('v-admin')&&document.getElementById('v-admin').classList.contains('on')) renderAdmin();
+  });
+  // Load & listen for Sunday tee time draft/published data — used to order the Sunday score-entry team list
+  db.ref('sunday_teetimes_draft').on('value',snap=>{
+    const d=snap.val()||{};
+    _sundayTT.acc = d.acc || null;
+    _sundayTT.gcc = d.gcc || null;
+    // Only refresh the team list if we're on the Score tab and not mid-edit (avoid interrupting active scoring)
+    const cardVisible = document.getElementById('cardPanel') && document.getElementById('cardPanel').style.display !== 'none';
+    if(!cardVisible) filterTeams();
   });
   // Load all scores from Firebase into local cache, then render
   db.ref('scores').once('value').then(snap=>{
