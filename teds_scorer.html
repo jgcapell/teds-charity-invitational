@@ -1381,7 +1381,7 @@ function generateSunday(sunCourse){
     const f2=t2?(t2.fi>=0?flights[t2.fi]?.name:'Unassigned'):'';
     const s1=t1.dnf?'DNF':(t1.satTotal??'–');
     const s2=t2?(t2.dnf?'DNF':(t2.satTotal??'–')):'';
-    html+=`<tr class="fs"><td rowspan="2"><span class="tee-badge">${fmt12hr(tStr)}</span></td>
+    html+=`<tr class="fs"><td rowspan="2"><span class="tee-badge">${tStr}</span></td>
       <td style="font-weight:600">${t1.name}</td>
       <td style="font-size:11px;color:var(--gray)">${f1}</td>
       <td>${s1}</td></tr>`;

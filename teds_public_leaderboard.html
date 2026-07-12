@@ -332,12 +332,12 @@ function buildSunTT(data, label){
   let h=`<div class="tt-section"><div class="tt-hdr">${label}</div><table class="tt-table"><thead><tr><th>Tee Time</th><th>Team</th><th>Flight</th><th>Sat Score</th></tr></thead><tbody>`;
   data.pairs.forEach(p=>{
     if(p.starter){
-      h+=`<tr style="background:var(--light,#f9f9f9);opacity:0.7"><td><span class="tee-badge-pub" style="opacity:0.5">${fmt12hr(p.time)}</span></td><td colspan="3" style="text-align:center;font-size:11px;color:var(--gray,#888);font-style:italic">— Starter's Tee Time —</td></tr>`;
+      h+=`<tr style="background:var(--light,#f9f9f9);opacity:0.7"><td><span class="tee-badge-pub" style="opacity:0.5">${p.time}</span></td><td colspan="3" style="text-align:center;font-size:11px;color:var(--gray,#888);font-style:italic">— Starter's Tee Time —</td></tr>`;
       return;
     }
     const s1=p.team1.score!==null?p.team1.score:'–';
     const s2=p.team2?(p.team2.score!==null?p.team2.score:'–'):'';
-    h+=`<tr style="border-top:2px solid var(--green)"><td rowspan="2"><span class="tee-badge-pub">${fmt12hr(p.time)}</span></td>
+    h+=`<tr style="border-top:2px solid var(--green)"><td rowspan="2"><span class="tee-badge-pub">${p.time}</span></td>
       <td style="font-weight:600">${p.team1.name}</td>
       <td style="font-size:11px;color:var(--gray)">${p.team1.flight}</td>
       <td>${s1}</td></tr>`;
