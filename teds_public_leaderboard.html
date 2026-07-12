@@ -119,6 +119,8 @@ const ACC_FRONT9_PAR=ACC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
 const GCC_FRONT9_PAR=GCC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
 // settings.sunday_format: 'full18' (default) | 'front9' — synced from scorer app via Firebase
 let _settings={sunday_format:'full18',tiebreak_overrides:{}};
+// Team IDs in the last two tee-time groups for ACC on Sunday — used to show a live "Thru X" badge
+let _liveThruTeamIds=new Set();
 // ── Firebase (read-only public page) ─────────────────────────
 const firebaseConfig={apiKey:"AIzaSyATkBOYK3_vFn_oGvpmtOMExXtxnsTRsSc",authDomain:"teds-charity-2026.firebaseapp.com",databaseURL:"https://teds-charity-2026-default-rtdb.firebaseio.com",projectId:"teds-charity-2026",storageBucket:"teds-charity-2026.firebasestorage.app",messagingSenderId:"270962403702",appId:"1:270962403702:web:d835e14d97dd32dd45b257"};
 firebase.initializeApp(firebaseConfig);
@@ -281,6 +283,19 @@ function loadAndRenderTT(){
   });
 }
 
+// Team IDs from the last two non-starter tee-time groups for ACC on Sunday.
+// Used to show a live "Thru X holes" badge on the leaderboard for those specific teams.
+function computeLiveThruTeamIds(sunAccData){
+  const ids=new Set();
+  if(!sunAccData || !Array.isArray(sunAccData.pairs)) return ids;
+  const realPairs=sunAccData.pairs.filter(p=>!p.starter);
+  realPairs.slice(-2).forEach(p=>{
+    if(p.team1&&p.team1.id) ids.add(p.team1.id);
+    if(p.team2&&p.team2.id) ids.add(p.team2.id);
+  });
+  return ids;
+}
+
 function renderTTView(sunAcc, sunGcc){
   let html='';
   // Saturday ACC
@@ -413,7 +428,9 @@ function renderLB(){
     const partial = satNum!==null && !t.s.satFull
       ? '<span style="font-size:10px;color:#e65100"> ('+t.s.satHolesPlayed+')</span>' : '';
     const r1 = isDNF && t.s.satDNF ? '<span style="color:#c0392b">DNF</span>' : (satNum!==null ? satNum+partial : '–');
-    const r2 = isDNF && t.s.sunDNF ? '<span style="color:#c0392b">DNF</span>' : (sunNum!==null ? sunNum : '–');
+    const liveThru = (!isDNF && sunNum===null && t.s.sunHolesPlayed>0 && _liveThruTeamIds.has(t.id))
+      ? '<span style="background:#fff3e0;color:#e65100;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">Thru '+t.s.sunHolesPlayed+'</span>' : null;
+    const r2 = isDNF && t.s.sunDNF ? '<span style="color:#c0392b">DNF</span>' : (liveThru || (sunNum!==null ? sunNum : '–'));
     const tot = isDNF ? '<span style="color:#c0392b;font-weight:700">DNF</span>' : (totNum!==null ? totNum : '–');
 
     const posDisplay = isDNF ? '⛔' : (hasScore && rank!==null ? (tied?('T-'+rank):rank) : '–');
@@ -632,10 +649,13 @@ loadAndRenderSpecials();
 
 // Auto-refresh tee times tab when Sunday tee times are published
 db.ref('published_tt').on('value', snap=>{
+  const data = snap.val()||{};
+  // Track the last two ACC Sunday groups for the live "Thru X" leaderboard badge
+  _liveThruTeamIds = computeLiveThruTeamIds(data.sun_acc||null);
+  renderLB();
   // If tee times tab is visible, refresh it
   if(document.getElementById('v-tt') &&
      document.getElementById('v-tt').classList.contains('on')){
-    const data = snap.val()||{};
     renderTTView(data.sun_acc||null, data.sun_gcc||null);
   }
   // Also update the tab label to indicate tee times are available
