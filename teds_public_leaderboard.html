@@ -425,6 +425,10 @@ function renderLB(){
 
   // Competition ranking (1,1,3,4,4,4,7...) with manual-override resolution for tied groups.
   // Returns a map of team.id -> {rank, tied}. `teams` must already be sorted via compareTeams(_,_,key).
+  // Competition ranking (1,1,3,4,4,4,7...) with manual-override resolution for tied groups.
+  // Resolution only ever fills as many of places 1-3 as this group occupies — any teams from
+  // the same tied group beyond 3rd place always collapse into one shared T-rank, no matter
+  // how many there are, since tiebreakers only exist for places 1-3.
   function computeRanks(teams, key){
     const map={};
     let i=0, pos=1;
@@ -438,8 +442,15 @@ function renderLB(){
       if(groupSize>1){
         const overrideArr=(_settings.tiebreak_overrides&&_settings.tiebreak_overrides[key])||[];
         const resolved=group.every(gt=>overrideArr.indexOf(gt.id)!==-1);
-        if(resolved) group.forEach((gt,gi)=>{ map[gt.id]={rank:pos+gi, tied:false}; });
-        else group.forEach(gt=>{ map[gt.id]={rank:pos, tied:true}; });
+        if(resolved){
+          const topSlots=Math.max(0, Math.min(groupSize, 3-pos+1));
+          group.forEach((gt,gi)=>{
+            if(gi<topSlots) map[gt.id]={rank:pos+gi, tied:false};
+            else map[gt.id]={rank:pos+topSlots, tied:true};
+          });
+        } else {
+          group.forEach(gt=>{ map[gt.id]={rank:pos, tied:true}; });
+        }
       } else {
         map[t.id]={rank:pos, tied:false};
       }
