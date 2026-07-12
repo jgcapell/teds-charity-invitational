@@ -117,7 +117,7 @@ const GCC_TOTAL_PAR=71;
 const ACC_FRONT9_PAR=ACC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
 const GCC_FRONT9_PAR=GCC_PAR.slice(0,9).reduce((a,b)=>a+b,0);
 // settings.sunday_format: 'full18' (default) | 'front9' — synced from scorer app via Firebase
-let _settings={sunday_format:'full18'};
+let _settings={sunday_format:'full18',tiebreak_overrides:{}};
 // ── Firebase (read-only public page) ─────────────────────────
 const firebaseConfig={apiKey:"AIzaSyATkBOYK3_vFn_oGvpmtOMExXtxnsTRsSc",authDomain:"teds-charity-2026.firebaseapp.com",databaseURL:"https://teds-charity-2026-default-rtdb.firebaseio.com",projectId:"teds-charity-2026",storageBucket:"teds-charity-2026.firebasestorage.app",messagingSenderId:"270962403702",appId:"1:270962403702:web:d835e14d97dd32dd45b257"};
 firebase.initializeApp(firebaseConfig);
@@ -376,6 +376,21 @@ function renderLB(){
   // Safe numeric score (never returns 'DNF' string to templates)
   function safeScore(v){ return typeof v==='number' ? v : '–'; }
 
+  // Manual tiebreak override: admin-entered finish order for teams tied on score.
+  // Only ever breaks ties (equal sortKey) — never reorders teams with different scores.
+  function tieOverrideIdx(teamId, key){
+    const arr = (_settings.tiebreak_overrides && _settings.tiebreak_overrides[key]) || [];
+    const idx = arr.indexOf(teamId);
+    return idx===-1 ? null : idx;
+  }
+  function compareTeams(a, b, key){
+    const ka=sortKey(a), kb=sortKey(b);
+    if(ka!==kb) return ka-kb;
+    const ia=tieOverrideIdx(a.id,key), ib=tieOverrideIdx(b.id,key);
+    if(ia!==null && ib!==null) return ia-ib;
+    return 0;
+  }
+
   function teamRow(t, pos){
     const isDNF = t.s.anyDNF === true;
     const satNum = typeof t.s.satTotal==='number' ? t.s.satTotal : null;
@@ -416,13 +431,13 @@ function renderLB(){
   }
 
   if(!flightsConfigured){
-    const sorted=data.slice().sort((a,b)=>sortKey(a)-sortKey(b));
+    const sorted=data.slice().sort((a,b)=>compareTeams(a,b,'overall'));
     const scoredCount=sorted.filter(t=>typeof t.s.satTotal==='number'&&!t.s.anyDNF).length;
     html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
     html+=renderTable(sorted);
   } else {
     flights.forEach((f,fi)=>{
-      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>sortKey(a)-sortKey(b));
+      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>compareTeams(a,b,String(fi)));
       if(!inF.length) return;
       const scoredF=inF.filter(t=>t.s.satFull||typeof t.s.satTotal==='number').length;
       html+=`<div class="flight-block">
@@ -430,7 +445,7 @@ function renderLB(){
       html+=renderTable(inF);
       html+='</div>';
     });
-    const unassigned=data.filter(t=>t.fi===-1&&(typeof t.s.satTotal==='number'||t.s.anyDNF)).sort((a,b)=>sortKey(a)-sortKey(b));
+    const unassigned=data.filter(t=>t.fi===-1&&(typeof t.s.satTotal==='number'||t.s.anyDNF)).sort((a,b)=>compareTeams(a,b,'unassigned'));
     if(unassigned.length){
       html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
       html+=renderTable(unassigned);
@@ -521,6 +536,7 @@ function renderSpecials(){
 db.ref('settings').on('value', snap=>{
   const s=snap.val()||{};
   _settings.sunday_format = s.sunday_format || 'full18';
+  _settings.tiebreak_overrides = s.tiebreak_overrides || {};
   renderLB();
 });
 

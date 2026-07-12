@@ -318,6 +318,11 @@ select:focus,input:focus{border-color:var(--green);}
       <div class="a-grid" id="flight-cfg"></div>
       <button class="btn btn-green" onclick="saveFlights()" style="margin-top:12px">Save Flight Settings</button>
     </div>
+    <div class="card">
+      <div class="card-title">🏅 Tiebreaker Order (1st–4th Place)</div>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:10px">When teams are tied on score for a top-4 spot, drag to set the actual finish order (however you determine it — scorecard countback, playoff, committee ruling). This only reorders teams that are genuinely tied on score; it never overrides the score-based standings. The public leaderboard updates instantly once you save.</p>
+      <div id="tiebreak-out"></div>
+    </div>
     <div class="card contingency-card">
       <h3>⛈️ Sunday Weather Contingencies</h3>
       <p style="font-size:13px;color:var(--gray);margin-bottom:10px">Both settings below are admin-only, reversible until locked in for the day, and instantly synced to the scorer app and public leaderboard.</p>
@@ -440,7 +445,7 @@ function getSundayTeeMap(course){
   return map;
 }
 // settings.sunday_format: 'full18' (default) | 'front9' — set by admin if Sunday is weather-shortened
-let _settings={sunday_format:'full18'};
+let _settings={sunday_format:'full18',tiebreak_overrides:{}};
 // ── Local storage (PIN, flights only) ────────────────────────
 function store(k,v){try{localStorage.setItem('tci2026_'+k,JSON.stringify(v));}catch(e){}}
 function load(k,def=null){try{const v=localStorage.getItem('tci2026_'+k);return v!==null?JSON.parse(v):def;}catch(e){return def;}}
@@ -666,6 +671,21 @@ function renderLB(){
     return 99999;
   }
 
+  // Manual tiebreak override: admin-entered finish order for teams tied on score.
+  // Only ever breaks ties (equal sortKey) — never reorders teams with different scores.
+  function tieOverrideIdx(teamId, key){
+    const arr = (_settings.tiebreak_overrides && _settings.tiebreak_overrides[key]) || [];
+    const idx = arr.indexOf(teamId);
+    return idx===-1 ? null : idx;
+  }
+  function compareTeams(a, b, key){
+    const ka=sortKey(a), kb=sortKey(b);
+    if(ka!==kb) return ka-kb;
+    const ia=tieOverrideIdx(a.id,key), ib=tieOverrideIdx(b.id,key);
+    if(ia!==null && ib!==null) return ia-ib;
+    return 0;
+  }
+
   function teamRow(t,pos){
     const isDNF=t.s.anyDNF===true;
     const satNum=typeof t.s.satTotal==='number'?t.s.satTotal:null;
@@ -693,7 +713,7 @@ function renderLB(){
   }
 
   if(!flightsConfigured){
-    const sorted=data.slice().sort((a,b)=>sortKey(a)-sortKey(b));
+    const sorted=data.slice().sort((a,b)=>compareTeams(a,b,'overall'));
     const scoredCount=sorted.filter(t=>t.s.satTotal!==null).length;
     html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
     html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
@@ -706,7 +726,7 @@ function renderLB(){
   } else {
     // GCC-Saturday flights first (Champ, F1, F2), then ACC-Saturday (F3, F4, F5)
     flights.forEach((f,fi)=>{
-      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>sortKey(a)-sortKey(b));
+      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>compareTeams(a,b,String(fi)));
       if(!inF.length) return;
       const scoredF=inF.filter(t=>t.s.satFull||t.s.total!==null).length;
       html+=`<div class="flight-block">
@@ -717,7 +737,7 @@ function renderLB(){
       html+='</tbody></table></div>';
     });
     // Teams not yet assigned
-    const unassigned=data.filter(t=>t.fi===-1&&t.s.satTotal!==null).sort((a,b)=>sortKey(a)-sortKey(b));
+    const unassigned=data.filter(t=>t.fi===-1&&t.s.satTotal!==null).sort((a,b)=>compareTeams(a,b,'unassigned'));
     if(unassigned.length){
       html+='<div class="flight-hdr" style="background:#888">Unassigned <span>'+unassigned.length+'</span></div>';
       html+='<table><thead><tr><th>#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
@@ -1479,6 +1499,8 @@ function renderAdmin(){
       <span style="color:var(--green)">✅ ACC: ${accDone}/152</span>
       <span style="color:var(--green)">✅ GCC: ${gccDone}/152</span>
     </div>`+sHtml;
+
+  renderTiebreakAdmin();
 }
 
 function declareFront9(){
@@ -1490,6 +1512,103 @@ function restoreFull18(){
   if(!confirm('Restore Sunday to the standard FULL 18 holes?')) return;
   db.ref('settings/sunday_format').set('full18');
   showToast('↩ Sunday restored to full 18 holes');
+}
+
+// ── Manual Tiebreaker Order (1st–4th place) ───────────────────
+let _tieSortables=[];
+
+// Find groups of teams tied on score where the tie affects a top-4 finishing position.
+// sortedTeams must already be sorted by sortKey ascending (scored, non-DNF teams only).
+function findTopTieGroups(sortedTeams){
+  const groups=[];
+  let i=0, pos=1;
+  while(i<sortedTeams.length){
+    const t=sortedTeams[i];
+    if(typeof t.s.satTotal!=='number'){ i++; continue; }
+    let j=i+1;
+    while(j<sortedTeams.length && typeof sortedTeams[j].s.satTotal==='number' && sortKey(sortedTeams[j])===sortKey(t)) j++;
+    const groupSize=j-i;
+    if(groupSize>1 && pos<=4){
+      groups.push({startPos:pos, teams:sortedTeams.slice(i,j)});
+    }
+    pos+=groupSize;
+    i=j;
+  }
+  return groups;
+}
+
+function ordinal(n){ return n===1?'1st':n===2?'2nd':n===3?'3rd':n+'th'; }
+
+function renderTiebreakAdmin(){
+  _tieSortables.forEach(s=>s.destroy());
+  _tieSortables=[];
+
+  const flights=getFlights();
+  const flightsConfigured=flights.some(f=>f.min!==0||f.max!==999);
+  const allData=TEAMS.map(t=>({...t,s:getTeamStats(t.id),fi:getTeamFlight(t.id)}));
+  const data=allData.filter(t=>t.s.anyDNF!==true);
+
+  const contexts=[]; // {key, label, groups}
+  if(!flightsConfigured){
+    const sorted=data.slice().sort((a,b)=>sortKey(a)-sortKey(b));
+    contexts.push({key:'overall', label:'Overall Standings', groups:findTopTieGroups(sorted)});
+  } else {
+    flights.forEach((f,fi)=>{
+      const inF=data.filter(t=>t.fi===fi).sort((a,b)=>sortKey(a)-sortKey(b));
+      contexts.push({key:String(fi), label:f.name, groups:findTopTieGroups(inF)});
+    });
+  }
+
+  const active=contexts.filter(c=>c.groups.length);
+  if(!active.length){
+    document.getElementById('tiebreak-out').innerHTML='<p style="font-size:13px;color:var(--gray)">No ties currently affect a top-4 finish. This will update automatically as scores come in.</p>';
+    return;
+  }
+
+  let html='';
+  active.forEach(ctx=>{
+    html+=`<div class="f-config" style="margin-bottom:14px"><h3>${ctx.label}</h3>`;
+    ctx.groups.forEach((g,gi)=>{
+      const override=(_settings.tiebreak_overrides&&_settings.tiebreak_overrides[ctx.key])||[];
+      // Preserve saved order if present, otherwise natural order
+      const ordered=g.teams.slice().sort((a,b)=>{
+        const ia=override.indexOf(a.id), ib=override.indexOf(b.id);
+        if(ia!==-1&&ib!==-1) return ia-ib;
+        return 0;
+      });
+      html+=`<div style="font-weight:700;font-size:13px;margin:8px 0 4px">Tied for ${ordinal(g.startPos)} place</div>`;
+      html+=`<ul class="tie-group" data-ctx="${ctx.key}" style="list-style:none;padding:0;margin:0 0 8px 0;border:1px solid var(--lite);border-radius:6px;overflow:hidden">`;
+      ordered.forEach(t=>{
+        html+=`<li data-team="${t.id}" style="padding:8px 10px;background:#fff;border-bottom:1px solid var(--lite);cursor:grab;font-size:13px;display:flex;align-items:center;gap:8px">☰ ${t.name}</li>`;
+      });
+      html+='</ul>';
+    });
+    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" style="width:auto;padding:8px 16px;font-size:13px" onclick="saveTiebreakOrder('${ctx.key}')">💾 Save Order</button>
+      <button class="btn btn-gray" style="width:auto;padding:8px 16px;font-size:13px" onclick="clearTiebreakOrder('${ctx.key}')">↩ Reset to Score Order</button>
+    </div></div>`;
+  });
+  document.getElementById('tiebreak-out').innerHTML=html;
+
+  document.querySelectorAll('#tiebreak-out ul.tie-group').forEach(ul=>{
+    if(window.Sortable) _tieSortables.push(Sortable.create(ul,{animation:150}));
+  });
+}
+
+function saveTiebreakOrder(key){
+  const lists=document.querySelectorAll(`#tiebreak-out ul.tie-group[data-ctx="${key}"]`);
+  let order=[];
+  lists.forEach(ul=>{
+    ul.querySelectorAll('li').forEach(li=>order.push(li.getAttribute('data-team')));
+  });
+  db.ref('settings/tiebreak_overrides/'+key).set(order);
+  showToast('🏅 Tiebreak order saved');
+}
+
+function clearTiebreakOrder(key){
+  if(!confirm('Reset this flight\'s tiebreaker to plain score order? This removes your manual ordering.')) return;
+  db.ref('settings/tiebreak_overrides/'+key).remove();
+  showToast('↩ Tiebreak override cleared');
 }
 
 function saveFlights(){
@@ -2121,6 +2240,7 @@ function initApp(){
   db.ref('settings').on('value',snap=>{
     const s=snap.val()||{};
     _settings.sunday_format = s.sunday_format || 'full18';
+    _settings.tiebreak_overrides = s.tiebreak_overrides || {};
     renderLB();
     if(document.getElementById('v-admin')&&document.getElementById('v-admin').classList.contains('on')) renderAdmin();
     if(curTeam) renderCard();
