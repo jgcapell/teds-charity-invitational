@@ -747,7 +747,7 @@ function renderLB(){
 
   if(!flightsConfigured){
     const sorted=data.slice().sort((a,b)=>compareTeams(a,b,'overall'));
-    const scoredCount=sorted.filter(t=>t.s.satTotal!==null).length;
+    const scoredCount=sorted.filter(t=>t.s.total!==null).length;
     html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
     html+='<table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>';
     const ranks=computeRanks(sorted,'overall');
@@ -760,7 +760,7 @@ function renderLB(){
     flights.forEach((f,fi)=>{
       const inF=data.filter(t=>t.fi===fi).sort((a,b)=>compareTeams(a,b,String(fi)));
       if(!inF.length) return;
-      const scoredF=inF.filter(t=>t.s.satFull||t.s.total!==null).length;
+      const scoredF=inF.filter(t=>t.s.total!==null).length;
       html+=`<div class="flight-block">
         <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>
         <table><thead><tr><th style="width:36px">#</th><th>Team</th><th class="c">vs Par</th><th class="c">R1 (Sat)</th><th class="c">R2 (Sun)</th><th class="c">Total</th></tr></thead><tbody>`;

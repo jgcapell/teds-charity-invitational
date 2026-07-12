@@ -460,14 +460,14 @@ function renderLB(){
 
   if(!flightsConfigured){
     const sorted=data.slice().sort((a,b)=>compareTeams(a,b,'overall'));
-    const scoredCount=sorted.filter(t=>typeof t.s.satTotal==='number'&&!t.s.anyDNF).length;
+    const scoredCount=sorted.filter(t=>t.s.total!==null).length;
     html+='<div class="flight-hdr" style="background:#1a4a1a">Overall Standings <span>'+scoredCount+' of '+data.length+' scored</span></div>';
     html+=renderTable(sorted, 'overall');
   } else {
     flights.forEach((f,fi)=>{
       const inF=data.filter(t=>t.fi===fi).sort((a,b)=>compareTeams(a,b,String(fi)));
       if(!inF.length) return;
-      const scoredF=inF.filter(t=>t.s.satFull||typeof t.s.satTotal==='number').length;
+      const scoredF=inF.filter(t=>t.s.total!==null).length;
       html+=`<div class="flight-block">
         <div class="flight-hdr" style="background:${f.color}">${f.name}<span>${scoredF} of ${inF.length} scored</span></div>`;
       html+=renderTable(inF, String(fi));
